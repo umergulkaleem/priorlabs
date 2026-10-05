@@ -29,6 +29,7 @@ export default function Home() {
   const [interfaces, setInterfaces] = useState<Alert[]>([]);
   const [liveState, setLiveState] = useState<Record<string, any>>({ flows: [], active_flows: [] });
   const [selectedFlow, setSelectedFlow] = useState<Record<string, any> | null>(null);
+  const [modelCheckLoading, setModelCheckLoading] = useState("");
 
   useEffect(() => {
     fetch(`${API}/model-status`).then((response) => response.json()).then(setStatus)
@@ -101,7 +102,7 @@ export default function Home() {
   }
 
   async function checkMockData(kind: "attack" | "benign") {
-    setBusy(true); setMessage("");
+    setBusy(true); setModelCheckLoading(`Testing mock ${kind} data...`); setMessage("");
     const form = new FormData();
     form.append("kind", kind); form.append("count", "5");
     try {
@@ -111,11 +112,11 @@ export default function Home() {
       setMockCheck(data);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not run the mock model test.");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setModelCheckLoading(""); }
   }
 
   async function checkManualTraffic() {
-    setBusy(true); setMessage("");
+    setBusy(true); setModelCheckLoading("Checking both held-out rows..."); setMessage("");
     try {
       const records = ["attack", "benign"].map((kind) => {
         let parsed: Record<string, unknown>;
@@ -139,7 +140,7 @@ export default function Home() {
       setManualResults({ attack: data.predictions[0], benign: data.predictions[1] });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Manual prediction failed.");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); setModelCheckLoading(""); }
   }
 
   async function loadAlerts() {
@@ -156,7 +157,8 @@ export default function Home() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      setAnswer(await response.json());
+      const data = await response.json();
+      setAnswer({ answer: data.answer ?? data });
     } catch { setMessage("Could not reach the Python investigation API."); }
     finally { setBusy(false); }
   }
@@ -208,11 +210,11 @@ export default function Home() {
             </div>}
           </div>
         </section>
-        {training && <TrainingResults training={training} comparison={comparison} mockCheck={mockCheck} checkMockData={checkMockData} manualRows={manualRows} setManualRows={setManualRows} manualResults={manualResults} manualExpected={manualExpected} checkManualTraffic={checkManualTraffic} busy={busy} />}
+        {training && <TrainingResults training={training} comparison={comparison} mockCheck={mockCheck} checkMockData={checkMockData} manualRows={manualRows} setManualRows={setManualRows} manualResults={manualResults} manualExpected={manualExpected} checkManualTraffic={checkManualTraffic} busy={busy} modelCheckLoading={modelCheckLoading} />}
       </>}
       {view === "live" && <LiveNetworkView interfaces={interfaces} state={liveState} busy={busy} selectedFlow={selectedFlow} setSelectedFlow={setSelectedFlow} onAction={liveAction} />}
       {view === "alerts" && <section className="page-section"><div className="eyebrow red">LIVE ALERT REGISTER</div><h2>Activity requiring attention.</h2>{alerts.length ? alerts.map((alert, index) => <AlertRow key={alert.flow_id ?? index} alert={alert} onClick={() => setSelectedAlert(alert)} />) : <Empty text="No live attack alerts detected. Start monitoring and generate traffic." />}{selectedAlert && <Detail alert={selectedAlert} onClose={() => setSelectedAlert(null)} />}</section>}
-      {view === "investigator" && <section className="page-section investigator"><div className="eyebrow blue">MCP INVESTIGATOR</div><h2>Ask about the evidence.</h2><p className="lede">Questions are sent to the existing Python investigation layer.</p><div className="question-box"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} /><button className="primary-button" onClick={investigate} disabled={busy}>Investigate</button></div><div className="suggestions">{["What are the model metrics?", "Which features were used?", "Show uncertain predictions.", "Is TabPFN better than Random Forest?"].map((item) => <button key={item} onClick={() => setQuestion(item)}>{item}</button>)}</div>{answer && <pre className="answer">{JSON.stringify(answer, null, 2)}</pre>}</section>}
+      {view === "investigator" && <section className="page-section investigator"><div className="eyebrow blue">MCP INVESTIGATOR</div><h2>Ask about the evidence.</h2><p className="lede">Questions are answered from the current model or persisted live-flow evidence.</p><div className="question-box"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} /><button className="primary-button" onClick={investigate} disabled={busy}>Investigate</button></div><div className="suggestions">{["What just happened on my network?", "Which port was attacked?", "Which connection is highest risk?", "Do the baseline models agree?"].map((item) => <button key={item} onClick={() => setQuestion(item)}>{item}</button>)}</div>{answer && <div className="answer">{answer.answer}</div>}</section>}
     </main>
   );
 }
@@ -226,7 +228,7 @@ function LiveNetworkView({ interfaces, state, busy, selectedFlow, setSelectedFlo
 
 function MetricBox({ label, value }: { label: string; value: string | number }) { return <div><span>{label}</span><strong>{value}</strong></div>; }
 
-function TrainingResults({ training, comparison, mockCheck, checkMockData, manualRows, setManualRows, manualResults, manualExpected, checkManualTraffic, busy }: { training: Record<string, any>; comparison: Record<string, any> | null; mockCheck: Record<string, any> | null; checkMockData: (kind: "attack" | "benign") => void; manualRows: { attack: string; benign: string }; setManualRows: (value: { attack: string; benign: string }) => void; manualResults: Record<string, any> | null; manualExpected: { attack: string; benign: string }; checkManualTraffic: () => void; busy: boolean }) {
+function TrainingResults({ training, comparison, mockCheck, checkMockData, manualRows, setManualRows, manualResults, manualExpected, checkManualTraffic, busy, modelCheckLoading }: { training: Record<string, any>; comparison: Record<string, any> | null; mockCheck: Record<string, any> | null; checkMockData: (kind: "attack" | "benign") => void; manualRows: { attack: string; benign: string }; setManualRows: (value: { attack: string; benign: string }) => void; manualResults: Record<string, any> | null; manualExpected: { attack: string; benign: string }; checkManualTraffic: () => void; busy: boolean; modelCheckLoading: string }) {
   const metrics = training.metrics ?? {};
   const models = (comparison?.comparison ?? {}) as Record<string, Record<string, any>>;
   return (
@@ -242,7 +244,7 @@ function TrainingResults({ training, comparison, mockCheck, checkMockData, manua
         <div className="eyebrow blue">MODEL TEST</div>
         <h3>Run a prediction check</h3>
         <p className="helper">Use safe mock traffic generated from the trained dataset to check whether the model predicts attack or benign. This does not capture traffic or attack a computer.</p>
-        <div className="mock-actions"><button className="secondary-button" onClick={() => checkMockData("attack")} disabled={busy}>Test mock attack data</button><button className="secondary-button" onClick={() => checkMockData("benign")} disabled={busy}>Test mock benign data</button></div>
+        <div className="mock-actions"><button className="secondary-button" onClick={() => checkMockData("attack")} disabled={busy}>{modelCheckLoading === "Testing mock attack data..." ? <LoadingLabel text="Testing mock attack data..." /> : "Test mock attack data"}</button><button className="secondary-button" onClick={() => checkMockData("benign")} disabled={busy}>{modelCheckLoading === "Testing mock benign data..." ? <LoadingLabel text="Testing mock benign data..." /> : "Test mock benign data"}</button></div>
         {mockCheck && <div className="user-check-result"><strong>Expected {mockCheck.expected_kind}: {mockCheck.attack_predictions} attack / {mockCheck.benign_predictions} benign</strong><span>{mockCheck.rows} synthetic rows classified by the trained model</span></div>}
       </div>
       <div className="results-panel manual-test-panel">
@@ -252,8 +254,8 @@ function TrainingResults({ training, comparison, mockCheck, checkMockData, manua
       <div className="manual-json-grid">
         {(["attack", "benign"] as const).map((kind) => <label className="field-label" key={kind}>{kind.toUpperCase()} JSON (expected {manualExpected[kind] || "—"}<textarea className="manual-row-input" value={manualRows[kind]} onChange={(event) => setManualRows({ ...manualRows, [kind]: event.target.value })} spellCheck={false} /></label>)}
       </div>
-      <button className="primary-button" onClick={checkManualTraffic} disabled={busy || !manualRows.attack || !manualRows.benign}>Classify both held-out rows</button>
-      {manualResults && <div className="manual-result-grid">{(["attack", "benign"] as const).map((kind) => { const result = manualResults[kind]; return <div className={`manual-result ${result.is_attack ? "manual-attack" : ""}`} key={kind}><strong>{kind.toUpperCase()} → {result.is_attack ? "ATTACK" : "BENIGN"}</strong><span>Prediction: {result.prediction}</span><span>Attack probability: {(result.probabilities["1"] * 100).toFixed(1)}%</span><span>Confidence: {(result.confidence * 100).toFixed(1)}%</span><span>{result.evidence?.join(" ")}</span></div>; })}</div>}
+      <button className="primary-button" onClick={checkManualTraffic} disabled={busy || !manualRows.attack || !manualRows.benign}>{modelCheckLoading === "Checking both held-out rows..." ? <LoadingLabel text="Checking both held-out rows..." /> : "Classify both held-out rows"}</button>
+      {manualResults && <div className="manual-result-grid">{(["attack", "benign"] as const).map((kind) => { const result = manualResults[kind]; const expected = manualExpected[kind]; const correct = String(result.prediction) === String(expected); return <div className={`manual-result ${correct ? "manual-correct" : "manual-incorrect"}`} key={kind}><strong>{kind.toUpperCase()} → {result.is_attack ? "ATTACK" : "BENIGN"} ({correct ? "CORRECT" : "INCORRECT"})</strong><span>Prediction: {result.prediction}</span><span>Attack probability: {(result.probabilities["1"] * 100).toFixed(1)}%</span><span>Confidence: {(result.confidence * 100).toFixed(1)}%</span><span>{result.evidence?.join(" ")}</span></div>; })}</div>}
       </div>
       <div className="results-panel comparison-panel">
         <div className="eyebrow">MODEL COMPARISON</div>
@@ -261,6 +263,10 @@ function TrainingResults({ training, comparison, mockCheck, checkMockData, manua
       </div>
     </section>
   );
+}
+
+function LoadingLabel({ text }: { text: string }) {
+  return <span className="button-loading"><i aria-hidden="true" />{text}</span>;
 }
 
 function Empty({ text }: { text: string }) { return <div className="empty">{text}</div>; }

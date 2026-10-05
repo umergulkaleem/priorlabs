@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from dotenv import load_dotenv
@@ -208,7 +209,7 @@ def get_live_prediction_evidence(flow_id: int) -> dict[str, Any]:
 
 @mcp.tool()
 def investigate_live_network(question: str) -> dict[str, Any]:
-    """Answer a live-network question using only the persisted capture state."""
+    """Answer natural-language questions from persisted live flow evidence."""
     state = read_live_state()
     flows = state.get("flows", [])
     alerts = [flow for flow in flows if flow.get("prediction", {}).get("is_attack", False)]
@@ -222,23 +223,126 @@ def investigate_live_network(question: str) -> dict[str, Any]:
         default=None,
     )
     text = question.lower()
-    if "suspicious" in text or "alert" in text:
-        answer = f"{len(alerts)} suspicious flows are present in the current live window."
-        evidence = alerts
+    flow_match = re.search(r"\bflow\s*#?\s*(\d+)\b", text)
+    port_match = re.search(r"\bport\s+(\d{1,5})\b", text)
+    selected: list[dict[str, Any]] = []
+    if flow_match:
+        flow_id = int(flow_match.group(1))
+        selected = [flow for flow in flows if int(flow.get("flow_id", -1)) == flow_id]
+    elif port_match:
+        port = int(port_match.group(1))
+        selected = [
+            flow for flow in flows
+            if port in {
+                int(flow.get("source_port", -1)),
+                int(flow.get("destination_port", -1)),
+            }
+        ]
+
+    def flow_summary(flow: dict[str, Any]) -> dict[str, Any]:
+        prediction = flow.get("prediction") or {}
+        probabilities = prediction.get("probabilities", {})
+        simulated = bool(flow.get("simulation", False))
+        return {
+            "flow_id": flow.get("flow_id"),
+            "source": flow.get("source"),
+            "destination": flow.get("destination"),
+            "source_port": None if simulated else flow.get("source_port"),
+            "destination_port": None if simulated else flow.get("destination_port"),
+            "protocol": flow.get("protocol"),
+            "packet_count": flow.get("packet_count"),
+            "bytes": flow.get("bytes"),
+            "is_attack": prediction.get("is_attack"),
+            "prediction": prediction.get("prediction"),
+            "attack_probability": probabilities.get("1"),
+            "confidence": prediction.get("confidence"),
+            "uncertainty": prediction.get("uncertainty"),
+            "models_agree": prediction.get("models_agree"),
+            "model_agreement": prediction.get("model_agreement", {}),
+            "simulation": simulated,
+            "evidence": prediction.get("evidence", []),
+        }
+
+    if selected:
+        selected_alerts = [flow for flow in selected if flow in alerts]
+        summaries = [flow_summary(flow) for flow in selected]
+        if selected_alerts:
+            answer = "Attack alert evidence found: " + "; ".join(
+                f"flow {item['flow_id']} used {item['protocol']} "
+                f"{item['source']} -> {item['destination']} "
+                f"({'synthetic; no network port' if item['simulation'] else f'source port {item['source_port']}, destination port {item['destination_port']}'}) "
+                f"with attack probability {item['attack_probability']!r}."
+                for item in summaries if item["is_attack"]
+            )
+        else:
+            answer = "The matching live flow was analyzed as benign, not an attack."
+        evidence = {"matched_flows": summaries}
+    elif "suspicious" in text or "alert" in text or "attack" in text:
+        alert_summaries = [flow_summary(flow) for flow in alerts]
+        if "which port" in text or "what port" in text:
+            real_ports = sorted({
+                port
+                for item in alert_summaries
+                for port in (item["source_port"], item["destination_port"])
+                if port is not None
+            })
+            answer = (
+                f"The detected attack involved network port(s): {', '.join(map(str, real_ports))}."
+                if real_ports
+                else "The current alert is synthetic and has no network port."
+            )
+        elif alert_summaries:
+            answer = "Attack flows in the current live window: " + "; ".join(
+                f"flow {item['flow_id']} "
+                f"({item['source']} -> {item['destination']}, "
+                f"{'synthetic; no network port' if item['simulation'] else f'source port {item['source_port']}, destination port {item['destination_port']}'}, attack probability "
+                f"{item['attack_probability']!r}, "
+                f"{'synthetic demonstration' if item['simulation'] else 'real captured flow'})"
+                for item in alert_summaries
+            )
+        else:
+            answer = "No flow in the current live window was classified as an attack."
+        evidence = {"alerts": alert_summaries}
     elif "uncertain" in text:
         answer = f"{len(uncertain)} live flows have elevated prediction uncertainty."
-        evidence = uncertain
+        evidence = {"flows": [flow_summary(flow) for flow in uncertain]}
     elif "highest" in text or "risk" in text or "investigate" in text:
-        answer = "No suspicious flow is currently available." if highest is None else (
-            f"Flow {highest['flow_id']} is the highest-risk suspicious flow by model confidence."
+        highest_ports = (
+            "synthetic; no network port"
+            if highest and highest.get("simulation")
+            else (
+                f"source port {highest.get('source_port')}, destination port "
+                f"{highest.get('destination_port')}"
+            )
+            if highest
+            else ""
         )
-        evidence = highest
+        answer = "No suspicious flow is currently available." if highest is None else (
+            f"Flow {highest['flow_id']} is the highest-risk suspicious flow: "
+            f"{highest.get('source')} -> {highest.get('destination')}, "
+            f"{highest_ports}, attack probability "
+            f"{(highest.get('prediction') or {}).get('probabilities', {}).get('1')!r}."
+        )
+        evidence = flow_summary(highest) if highest else None
+    elif "agree" in text or "baseline" in text or "model" in text:
+        comparisons = [flow_summary(flow) for flow in flows]
+        agreed = sum(item["models_agree"] is True for item in comparisons)
+        disagreed = sum(item["models_agree"] is False for item in comparisons)
+        answer = (
+            f"Baselines agree with TabPFN on {agreed} analyzed flows and disagree on "
+            f"{disagreed}."
+        )
+        evidence = {"flows": comparisons}
     else:
         answer = (
             f"{state.get('flows_analyzed', 0)} real flows were analyzed on "
             f"{state.get('interface') or 'the selected interface'}; {len(alerts)} were suspicious."
         )
-        evidence = {"status": state, "highest_risk": highest}
+        evidence = {
+            "status": {key: value for key, value in state.items() if key != "flows"},
+            "highest_risk": flow_summary(highest) if highest else None,
+            "alerts": [flow_summary(flow) for flow in alerts],
+        }
     return {"question": question, "answer": answer, "evidence": evidence}
 
 

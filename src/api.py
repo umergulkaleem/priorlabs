@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .ids_agent import IDSAgentError, IDSInvestigator
 from .live_network import LiveNetworkMonitor, discover_interfaces, live_flow
+from .mcp_server import investigate_live_network
 
 
 app = FastAPI(title="TabPFN Sentinel API", version="1.0")
@@ -271,6 +272,13 @@ def investigate(payload: dict[str, str]) -> Any:
     if not question:
         return _error(IDSAgentError("A question is required."))
     try:
+        live_terms = (
+            "network", "flow", "port", "connection", "packet", "traffic",
+            "suspicious", "alert", "attacked", "attack happened", "highest risk",
+            "baseline models agree",
+        )
+        if any(term in question.lower() for term in live_terms):
+            return {"answer": investigate_live_network(question)["answer"]}
         return agent.investigate(question)
     except IDSAgentError as error:
         return _error(error)
