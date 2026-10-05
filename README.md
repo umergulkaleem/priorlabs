@@ -120,22 +120,15 @@ explicitly zero-valued when unavailable; random values are never inserted.
 Live probabilities should therefore be interpreted with this feature
 availability limitation in mind.
 
-### TabPFN API credit protection
+### Live TabPFN predictions
 
-The authenticated `tabpfn-client` makes a remote request during model
-training/evaluation, and a live prediction can make another remote request.
-Previously, every completed live flow called the remote model, so ordinary
-browsing could consume credits continuously. Live monitoring now defaults to
-**one** remote TabPFN prediction per monitoring session. Capture and flow
-reconstruction continue after that limit, but additional flows are explicitly
-marked as not analyzed and do not call the API.
-
-To intentionally allow a larger bounded number for one session:
-
-```powershell
-$env:LIVE_TABPFN_MAX_PREDICTIONS = "3"
-C:\Users\Me\AppData\Local\Microsoft\WindowsApps\python3.13.exe -m streamlit run dashboard.py
-```
+Every completed live flow is sent through the trained TabPFN model. There is
+no artificial per-session flow limit; stop monitoring when you want to end
+capture. Because live predictions can make authenticated remote model
+requests, monitor API usage and costs when running for long periods.
+Stopping capture discards unfinished flows instead of analyzing them. A
+prediction already in progress may finish at the provider, but its result is
+ignored after monitoring stops.
 
 The model comparison also reuses the primary validation predictions already
 computed during training instead of sending a redundant remote prediction

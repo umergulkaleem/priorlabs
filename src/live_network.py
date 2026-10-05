@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import threading
 import time
 from collections import defaultdict
@@ -216,10 +215,8 @@ class LiveNetworkMonitor:
         self._next_flow_id = 1
         self._last_error: str | None = None
         self._last_state_write = 0.0
-        self._live_prediction_limit = max(
-            0, int(os.getenv("LIVE_TABPFN_MAX_PREDICTIONS", "1"))
-        )
         self._live_predictions_used = 0
+        self._window_generation = 0
 
     @property
     def monitoring(self) -> bool:
@@ -246,16 +243,26 @@ class LiveNetworkMonitor:
         self._write_state()
 
     def stop(self) -> None:
-        sniffer, self._sniffer = self._sniffer, None
-        if sniffer is not None:
-            try:
-                sniffer.stop()
-            except Exception as error:
-                self._last_error = f"Capture stopped with an error: {error}"
         with self._lock:
-            for key in list(self._flows):
-                self._complete_flow(key)
+            sniffer, self._sniffer = self._sniffer, None
+            self._window_generation += 1
+            self._flows.clear()
+        if sniffer is not None:
+            threading.Thread(
+                target=self._stop_sniffer,
+                args=(sniffer,),
+                name="live-network-stop",
+                daemon=True,
+            ).start()
         self._write_state()
+
+    def _stop_sniffer(self, sniffer: Any) -> None:
+        try:
+            sniffer.stop()
+        except Exception as error:
+            with self._lock:
+                self._last_error = f"Capture stopped with an error: {error}"
+            self._write_state()
 
     def clear(self) -> None:
         """Start a fresh live window without retraining or changing capture."""
@@ -266,6 +273,7 @@ class LiveNetworkMonitor:
             self._next_flow_id = 1
             self._last_error = None
             self._live_predictions_used = 0
+            self._window_generation += 1
         self._write_state()
 
     def _packet_callback(self, packet: Any) -> None:
@@ -284,6 +292,8 @@ class LiveNetworkMonitor:
             key = (protocol, ordered[0], ordered[1])
             timestamp = float(getattr(packet, "time", time.time()))
             with self._lock:
+                if self._sniffer is None:
+                    return
                 self._packets += 1
                 flow = self._flows.get(key)
                 if flow is None:
@@ -302,37 +312,34 @@ class LiveNetworkMonitor:
                 forward = (str(ip.src), source_port) == (flow.source_ip, flow.source_port)
                 flags = list(str(getattr(packet[TCP], "flags", ""))) if packet.haslayer(TCP) else []
                 flow.update(timestamp, len(packet), forward, flags)
-                self._expire_flows(timestamp)
-                if time.monotonic() - self._last_state_write >= 0.5:
-                    self._write_state()
+                expired = self._expire_flows(timestamp)
+                should_write = time.monotonic() - self._last_state_write >= 0.5
+                generation = self._window_generation
+            for expired_flow in expired:
+                self._complete_flow(expired_flow, generation)
+            if should_write:
+                self._write_state()
         except Exception as error:
             self._last_error = f"Packet processing failed: {error}"
 
-    def _expire_flows(self, now: float) -> None:
+    def _expire_flows(self, now: float) -> list[_Flow]:
+        expired: list[_Flow] = []
         for key, flow in list(self._flows.items()):
             if now - flow.last_seen >= 5 or flow.packet_count >= 100:
-                self._complete_flow(key)
+                expired.append(flow)
+                del self._flows[key]
+        return expired
 
-    def _complete_flow(self, key: tuple[Any, ...]) -> None:
-        flow = self._flows.pop(key, None)
-        if flow is None:
-            return
+    def _complete_flow(self, flow: _Flow, generation: int) -> None:
         features = flow_features(flow)
         record = dict(features)
-        if self._live_predictions_used >= self._live_prediction_limit:
+        try:
+            self._live_predictions_used += 1
+            prediction = self.agent.predict([record])[0]
+            error = None
+        except IDSAgentError as caught:
             prediction = None
-            error = (
-                "Live TabPFN prediction budget reached. Capture continues without "
-                "additional remote API calls. Set LIVE_TABPFN_MAX_PREDICTIONS to raise it."
-            )
-        else:
-            try:
-                self._live_predictions_used += 1
-                prediction = self.agent.predict([record])[0]
-                error = None
-            except IDSAgentError as caught:
-                prediction = None
-                error = str(caught)
+            error = str(caught)
         result = {
             "flow_id": flow.flow_id,
             "source": f"{flow.source_ip}:{flow.source_port}",
@@ -351,8 +358,11 @@ class LiveNetworkMonitor:
             "prediction": prediction,
             "error": error,
         }
-        self._completed.append(result)
-        self._completed = self._completed[-500:]
+        with self._lock:
+            if generation != self._window_generation:
+                return
+            self._completed.append(result)
+            self._completed = self._completed[-500:]
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -378,7 +388,6 @@ class LiveNetworkMonitor:
                 "flows_analyzed": len(analyzed),
                 "suspicious_flows": len(alerts),
                 "live_predictions_used": self._live_predictions_used,
-                "live_prediction_limit": self._live_prediction_limit,
                 "last_error": self._last_error,
                 "flows": list(reversed(self._completed[-100:])),
                 "active_flows": active_flows,
@@ -401,7 +410,7 @@ def read_live_state(path: Path = LIVE_STATE_PATH) -> dict[str, Any]:
         return {
             "monitoring": False, "interface": None, "packets_captured": 0,
             "flows_detected": 0, "flows_analyzed": 0, "suspicious_flows": 0,
-            "live_predictions_used": 0, "live_prediction_limit": 0,
+            "live_predictions_used": 0,
             "flows": [], "active_flows": [], "last_error": None,
         }
     try:

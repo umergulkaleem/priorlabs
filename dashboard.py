@@ -185,9 +185,8 @@ with live_mode:
             ]):
                 column.metric(title, value)
             st.caption(
-                f"Remote TabPFN live predictions: {state.get('live_predictions_used', 0)}"
-                f"/{state.get('live_prediction_limit', 0)} this monitoring session. "
-                "Capture continues after the budget is reached without more API calls."
+                f"Remote TabPFN live predictions: {state.get('live_predictions_used', 0)} "
+                "in this monitoring session."
             )
             if state.get("last_error"):
                 st.warning(state["last_error"])

@@ -1,89 +1,258 @@
 {
-  "timestamp_utc": "2026-10-05T15:20:01.862340+00:00",
+  "timestamp_utc": "2026-10-05T20:00:22.731409+00:00",
   "random_seed": 42,
   "dataset": {
-    "rows": 40,
-    "columns": 4,
-    "label_candidates": [
+    "rows": 300,
+    "columns": 82,
+    "column_names": [
+      "Destination Port",
+      "Flow Duration",
+      "Total Fwd Packets",
+      "Total Backward Packets",
+      "Total Length of Fwd Packets",
+      "Total Length of Bwd Packets",
+      "Fwd Packet Length Max",
+      "Fwd Packet Length Min",
+      "Fwd Packet Length Mean",
+      "Fwd Packet Length Std",
+      "Bwd Packet Length Max",
+      "Bwd Packet Length Min",
+      "Bwd Packet Length Mean",
+      "Bwd Packet Length Std",
+      "Flow Bytes/s",
+      "Flow Packets/s",
+      "Flow IAT Mean",
+      "Flow IAT Std",
+      "Flow IAT Max",
+      "Flow IAT Min",
+      "Fwd IAT Total",
+      "Fwd IAT Mean",
+      "Fwd IAT Std",
+      "Fwd IAT Max",
+      "Fwd IAT Min",
+      "Bwd IAT Total",
+      "Bwd IAT Mean",
+      "Bwd IAT Std",
+      "Bwd IAT Max",
+      "Bwd IAT Min",
+      "Fwd PSH Flags",
+      "Bwd PSH Flags",
+      "Fwd URG Flags",
+      "Bwd URG Flags",
+      "Fwd Header Length",
+      "Bwd Header Length",
+      "Fwd Packets/s",
+      "Bwd Packets/s",
+      "Min Packet Length",
+      "Max Packet Length",
+      "Packet Length Mean",
+      "Packet Length Std",
+      "Packet Length Variance",
+      "FIN Flag Count",
+      "SYN Flag Count",
+      "RST Flag Count",
+      "PSH Flag Count",
+      "ACK Flag Count",
+      "URG Flag Count",
+      "CWE Flag Count",
+      "ECE Flag Count",
+      "Down/Up Ratio",
+      "Average Packet Size",
+      "Avg Fwd Segment Size",
+      "Avg Bwd Segment Size",
+      "Fwd Header Length.1",
+      "Fwd Avg Bytes/Bulk",
+      "Fwd Avg Packets/Bulk",
+      "Fwd Avg Bulk Rate",
+      "Bwd Avg Bytes/Bulk",
+      "Bwd Avg Packets/Bulk",
+      "Bwd Avg Bulk Rate",
+      "Subflow Fwd Packets",
+      "Subflow Fwd Bytes",
+      "Subflow Bwd Packets",
+      "Subflow Bwd Bytes",
+      "Init_Win_bytes_forward",
+      "Init_Win_bytes_backward",
+      "act_data_pkt_fwd",
+      "min_seg_size_forward",
+      "Active Mean",
+      "Active Std",
+      "Active Max",
+      "Active Min",
+      "Idle Mean",
+      "Idle Std",
+      "Idle Max",
+      "Idle Min",
+      "Label",
+      "day",
+      "file",
       "is_attack"
     ],
-    "numeric_features": 3,
+    "label_candidates": [
+      "Label",
+      "is_attack"
+    ],
+    "numeric_features": 79,
     "missing_cells": 0,
-    "constant_columns": [],
+    "constant_columns": [
+      "Bwd PSH Flags",
+      "Fwd URG Flags",
+      "Bwd URG Flags",
+      "RST Flag Count",
+      "CWE Flag Count",
+      "ECE Flag Count",
+      "Fwd Avg Bytes/Bulk",
+      "Fwd Avg Packets/Bulk",
+      "Fwd Avg Bulk Rate",
+      "Bwd Avg Bytes/Bulk",
+      "Bwd Avg Packets/Bulk",
+      "Bwd Avg Bulk Rate"
+    ],
     "class_counts": {
+      "Label": {
+        "BENIGN": 293,
+        "DoS GoldenEye": 3,
+        "PortScan": 1,
+        "Bot": 1,
+        "Web Attack - Brute Force": 1,
+        "FTP-Patator": 1
+      },
       "is_attack": {
-        "0": 20,
-        "1": 20
+        "0": 293,
+        "1": 7
       }
     }
   },
   "model": {
-    "random_forest": {
-      "model": "random_forest",
+    "tabpfn": {
+      "model": "tabpfn",
       "classes": [
         "0",
         "1"
       ],
-      "accuracy": 0.75,
-      "macro_precision": 0.75,
-      "macro_recall": 0.75,
-      "macro_f1": 0.75,
-      "weighted_f1": 0.75,
+      "accuracy": 0.9833333333333333,
+      "macro_precision": 0.49166666666666664,
+      "macro_recall": 0.5,
+      "macro_f1": 0.4957983193277311,
+      "weighted_f1": 0.9750700280112045,
       "classification_report": {
         "0": {
-          "precision": 0.75,
-          "recall": 0.75,
-          "f1-score": 0.75,
-          "support": 4.0
+          "precision": 0.9833333333333333,
+          "recall": 1.0,
+          "f1-score": 0.9915966386554622,
+          "support": 59.0
         },
         "1": {
-          "precision": 0.75,
-          "recall": 0.75,
-          "f1-score": 0.75,
-          "support": 4.0
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 1.0
         },
-        "accuracy": 0.75,
+        "accuracy": 0.9833333333333333,
         "macro avg": {
-          "precision": 0.75,
-          "recall": 0.75,
-          "f1-score": 0.75,
-          "support": 8.0
+          "precision": 0.49166666666666664,
+          "recall": 0.5,
+          "f1-score": 0.4957983193277311,
+          "support": 60.0
         },
         "weighted avg": {
-          "precision": 0.75,
-          "recall": 0.75,
-          "f1-score": 0.75,
-          "support": 8.0
+          "precision": 0.9669444444444444,
+          "recall": 0.9833333333333333,
+          "f1-score": 0.9750700280112045,
+          "support": 60.0
         }
       },
       "confusion_matrix": [
         [
-          3,
-          1
+          59,
+          0
         ],
         [
           1,
-          3
+          0
         ]
       ],
       "confusion_matrix_labels": [
         "0",
         "1"
       ],
-      "inference_rows": 8,
-      "roc_auc": 0.875,
-      "pr_auc": 0.9166666666666666,
-      "tn": 3,
-      "fp": 1,
+      "inference_rows": 60,
+      "roc_auc": 0.9152542372881356,
+      "pr_auc": 0.16666666666666666,
+      "tn": 59,
+      "fp": 0,
       "fn": 1,
-      "tp": 3,
-      "false_positive_rate": 0.25,
-      "false_negative_rate": 0.25,
-      "rows_used": 40,
-      "features": 3,
-      "train_rows": 32,
-      "test_rows": 8,
-      "inference_seconds": 0.04018259999975271
+      "tp": 0,
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 1.0,
+      "rows_used": 300,
+      "features": 78,
+      "train_rows": 240,
+      "test_rows": 60,
+      "inference_seconds": 1.424017700002878
+    },
+    "random_forest": {
+      "model": "random_forest",
+      "classes": [
+        "0",
+        "1"
+      ],
+      "accuracy": 0.9833333333333333,
+      "macro_precision": 0.49166666666666664,
+      "macro_recall": 0.5,
+      "macro_f1": 0.4957983193277311,
+      "weighted_f1": 0.9750700280112045,
+      "classification_report": {
+        "0": {
+          "precision": 0.9833333333333333,
+          "recall": 1.0,
+          "f1-score": 0.9915966386554622,
+          "support": 59.0
+        },
+        "1": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1-score": 0.0,
+          "support": 1.0
+        },
+        "accuracy": 0.9833333333333333,
+        "macro avg": {
+          "precision": 0.49166666666666664,
+          "recall": 0.5,
+          "f1-score": 0.4957983193277311,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9669444444444444,
+          "recall": 0.9833333333333333,
+          "f1-score": 0.9750700280112045,
+          "support": 60.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          59,
+          0
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "0",
+        "1"
+      ],
+      "inference_rows": 60,
+      "roc_auc": 0.5847457627118644,
+      "pr_auc": 0.034482758620689655,
+      "tn": 59,
+      "fp": 0,
+      "fn": 1,
+      "tp": 0,
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 1.0,
+      "inference_seconds": 0.688832600000751
     },
     "logistic_regression": {
       "model": "logistic_regression",
@@ -91,45 +260,45 @@
         "0",
         "1"
       ],
-      "accuracy": 0.125,
-      "macro_precision": 0.1,
-      "macro_recall": 0.125,
-      "macro_f1": 0.1111111111111111,
-      "weighted_f1": 0.1111111111111111,
+      "accuracy": 0.9,
+      "macro_precision": 0.5714285714285714,
+      "macro_recall": 0.9491525423728814,
+      "macro_f1": 0.5982142857142857,
+      "weighted_f1": 0.9348214285714286,
       "classification_report": {
         "0": {
-          "precision": 0.0,
-          "recall": 0.0,
-          "f1-score": 0.0,
-          "support": 4.0
+          "precision": 1.0,
+          "recall": 0.8983050847457628,
+          "f1-score": 0.9464285714285714,
+          "support": 59.0
         },
         "1": {
-          "precision": 0.2,
-          "recall": 0.25,
-          "f1-score": 0.2222222222222222,
-          "support": 4.0
+          "precision": 0.14285714285714285,
+          "recall": 1.0,
+          "f1-score": 0.25,
+          "support": 1.0
         },
-        "accuracy": 0.125,
+        "accuracy": 0.9,
         "macro avg": {
-          "precision": 0.1,
-          "recall": 0.125,
-          "f1-score": 0.1111111111111111,
-          "support": 8.0
+          "precision": 0.5714285714285714,
+          "recall": 0.9491525423728814,
+          "f1-score": 0.5982142857142857,
+          "support": 60.0
         },
         "weighted avg": {
-          "precision": 0.1,
-          "recall": 0.125,
-          "f1-score": 0.1111111111111111,
-          "support": 8.0
+          "precision": 0.9857142857142858,
+          "recall": 0.9,
+          "f1-score": 0.9348214285714286,
+          "support": 60.0
         }
       },
       "confusion_matrix": [
         [
-          0,
-          4
+          53,
+          6
         ],
         [
-          3,
+          0,
           1
         ]
       ],
@@ -137,22 +306,22 @@
         "0",
         "1"
       ],
-      "inference_rows": 8,
-      "roc_auc": 0.25,
-      "pr_auc": 0.5654761904761905,
-      "tn": 0,
-      "fp": 4,
-      "fn": 3,
+      "inference_rows": 60,
+      "roc_auc": 0.9661016949152542,
+      "pr_auc": 0.3333333333333333,
+      "tn": 53,
+      "fp": 6,
+      "fn": 0,
       "tp": 1,
-      "false_positive_rate": 1.0,
-      "false_negative_rate": 0.75,
-      "inference_seconds": 0.0328349999999773
+      "false_positive_rate": 0.1016949152542373,
+      "false_negative_rate": 0.0,
+      "inference_seconds": 0.03698379999696044
     }
   },
   "reliability": {
     "probabilities_are_uncalibrated": true,
-    "brier_score": 0.188571875,
-    "ece": 0.150625,
+    "brier_score": 0.016300928691151465,
+    "ece": 0.014635262886683162,
     "bins": [
       {
         "lower": 0.0,
@@ -197,48 +366,48 @@
       {
         "lower": 0.5,
         "upper": 0.6000000000000001,
-        "count": 6,
-        "confidence": 0.5599999999999999,
-        "accuracy": 0.6666666666666666,
-        "gap": 0.10666666666666669
+        "count": 0,
+        "confidence": null,
+        "accuracy": null,
+        "gap": null
       },
       {
         "lower": 0.6000000000000001,
         "upper": 0.7000000000000001,
-        "count": 1,
-        "confidence": 0.675,
-        "accuracy": 1.0,
-        "gap": 0.32499999999999996
+        "count": 0,
+        "confidence": null,
+        "accuracy": null,
+        "gap": null
       },
       {
         "lower": 0.7000000000000001,
         "upper": 0.8,
-        "count": 1,
-        "confidence": 0.76,
-        "accuracy": 1.0,
-        "gap": 0.24
+        "count": 0,
+        "confidence": null,
+        "accuracy": null,
+        "gap": null
       },
       {
         "lower": 0.8,
         "upper": 0.9,
-        "count": 0,
-        "confidence": null,
-        "accuracy": null,
-        "gap": null
+        "count": 5,
+        "confidence": 0.8615480899810791,
+        "accuracy": 1.0,
+        "gap": 0.13845191001892088
       },
       {
         "lower": 0.9,
         "upper": 1.0,
-        "count": 0,
-        "confidence": null,
-        "accuracy": null,
-        "gap": null
+        "count": 55,
+        "confidence": 0.9784389777617021,
+        "accuracy": 0.9818181818181818,
+        "gap": 0.0033792040564797343
       }
     ],
     "confidence_accuracy": {
-      "mean_confidence": 0.599375,
-      "accuracy": 0.75,
-      "samples": 8
+      "mean_confidence": 0.9686980704466502,
+      "accuracy": 0.9833333333333333,
+      "samples": 60
     }
   },
   "preprocessing": {

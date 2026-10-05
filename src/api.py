@@ -9,6 +9,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from .ids_agent import IDSAgentError, IDSInvestigator
+from .live_network import LiveNetworkMonitor, discover_interfaces, live_flow
 
 
 app = FastAPI(title="TabPFN Sentinel API", version="1.0")
@@ -20,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 agent = IDSInvestigator()
+live_monitor = LiveNetworkMonitor(agent)
 EXAMPLE_DATASET = Path("data/processed/cicids2017_clean.parquet")
 
 
@@ -40,6 +42,58 @@ def health() -> dict[str, Any]:
 @app.get("/model-status")
 def model_status() -> dict[str, Any]:
     return agent.status()
+
+
+@app.get("/live/interfaces")
+def live_interfaces() -> Any:
+    try:
+        return discover_interfaces()
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.get("/live/status")
+def live_status() -> dict[str, Any]:
+    return live_monitor.snapshot()
+
+
+@app.get("/live/alerts")
+def live_alerts(limit: int = 25) -> list[dict[str, Any]]:
+    state = live_monitor.snapshot()
+    alerts = [
+        flow for flow in state.get("flows", [])
+        if flow.get("prediction", {}).get("is_attack") is True
+    ]
+    return alerts[: max(1, min(limit, 100))]
+
+
+@app.post("/live/start")
+def live_start(interface: str = Form(...)) -> Any:
+    try:
+        live_monitor.start(interface)
+        return live_monitor.snapshot()
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.post("/live/stop")
+def live_stop() -> dict[str, Any]:
+    live_monitor.stop()
+    return live_monitor.snapshot()
+
+
+@app.post("/live/clear")
+def live_clear() -> dict[str, Any]:
+    live_monitor.clear()
+    return live_monitor.snapshot()
+
+
+@app.get("/live/flow/{flow_id}")
+def live_flow_details(flow_id: int) -> Any:
+    try:
+        return live_flow(live_monitor.snapshot(), flow_id)
+    except IDSAgentError as error:
+        return _error(error)
 
 
 @app.post("/dataset/load")
