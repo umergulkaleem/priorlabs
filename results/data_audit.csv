@@ -1,0 +1,9 @@
+file,rows,cols,inf_cells,nan_cells,duplicate_rows,labels
+Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv,225745,79,64,4,2633,"{'DDoS': 128027, 'BENIGN': 97718}"
+Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv,286467,79,727,15,72353,"{'PortScan': 158930, 'BENIGN': 127537}"
+Friday-WorkingHours-Morning.pcap_ISCX.csv,191033,79,216,28,6888,"{'BENIGN': 189067, 'Bot': 1966}"
+Monday-WorkingHours.pcap_ISCX.csv,529918,79,810,64,26935,{'BENIGN': 529918}
+Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv,288602,79,396,18,35630,"{'BENIGN': 288566, 'Infiltration': 36}"
+Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv,170366,79,250,20,6066,"{'BENIGN': 168186, 'Web Attack ï¿½ Brute Force': 1507, 'Web Attack ï¿½ XSS': 652, 'Web Attack ï¿½ Sql Injection': 21}"
+Tuesday-WorkingHours.pcap_ISCX.csv,445909,79,327,201,24065,"{'BENIGN': 432074, 'FTP-Patator': 7938, 'SSH-Patator': 5897}"
+Wednesday-workingHours.pcap_ISCX.csv,692703,79,1586,1008,81909,"{'BENIGN': 440031, 'DoS Hulk': 231073, 'DoS GoldenEye': 10293, 'DoS slowloris': 5796, 'DoS Slowhttptest': 5499, 'Heartbleed': 11}"

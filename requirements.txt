@@ -1,0 +1,13 @@
+numpy>=2.0
+pandas>=2.2
+scikit-learn>=1.5
+pyarrow>=16.0
+python-dotenv>=1.0
+mcp>=1.0
+tabpfn>=9.0
+tabpfn-client>=0.1
+streamlit>=1.40
+scapy>=2.5
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9

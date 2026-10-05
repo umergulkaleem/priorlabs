@@ -1,0 +1,1 @@
+{"monitoring": false, "interface": null, "packets_captured": 0, "flows_detected": 0, "flows_analyzed": 0, "suspicious_flows": 0, "live_predictions_used": 0, "live_prediction_limit": 1, "last_error": null, "flows": [], "active_flows": [], "updated_at": "2026-10-05T15:26:11.455378+00:00"}

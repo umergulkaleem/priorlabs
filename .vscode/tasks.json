@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Check live IDS syntax",
+			"type": "shell",
+			"command": "python",
+			"args": [
+				"-m",
+				"compileall",
+				"-q",
+				"src",
+				"dashboard.py"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
