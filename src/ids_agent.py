@@ -262,10 +262,16 @@ class IDSInvestigator:
                 "tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp),
                 "false_positive_rate": float(fp / max(fp + tn, 1)),
                 "false_negative_rate": float(fn / max(fn + tp, 1)),
+                "attack_recall": float(tp / max(tp + fn, 1)),
             })
         else:
             metrics["roc_auc"] = None
             metrics["pr_auc"] = None
+            attack_true = ~y_true.map(lambda value: str(value).strip().upper() == "BENIGN")
+            attack_pred = ~pd.Series(predictions).map(lambda value: str(value).strip().upper() == "BENIGN")
+            attack_tp = int((attack_true & attack_pred).sum())
+            attack_fn = int((attack_true & ~attack_pred).sum())
+            metrics["attack_recall"] = float(attack_tp / max(attack_tp + attack_fn, 1))
         return metrics
 
     @staticmethod
@@ -586,6 +592,69 @@ class IDSInvestigator:
                 "evidence": self._evidence(inputs.iloc[index], confidence),
             })
         return _json_safe(results)
+
+    def validation_examples(self) -> dict[str, Any]:
+        """Return one held-out benign row and one held-out attack row.
+
+        These rows were excluded from model fitting and retain their observed
+        validation labels so the UI can test real dataset examples rather
+        than fabricated feature values.
+        """
+        if self.state is None:
+            raise IDSAgentError("Train the IDS model before requesting validation examples.")
+        rows = self.state.validation_rows
+        labels = rows["__label__"].astype(str)
+        benign = rows[labels.map(self._is_benign)]
+        attack = rows[~labels.map(self._is_benign)]
+        if benign.empty or attack.empty:
+            raise IDSAgentError("The held-out validation split must contain benign and attack rows.")
+
+        def serialize(row: pd.Series, expected_label: str) -> dict[str, Any]:
+            record = {
+                name: float(value) if pd.notna(value) else None
+                for name, value in row[self.state.feature_columns].items()
+            }
+            return {
+                "expected_label": expected_label,
+                "record": record,
+            }
+
+        benign_row = benign.iloc[0]
+        attack_row = attack.iloc[0]
+        return _json_safe({
+            "source": "held_out_validation_split",
+            "note": "Rows were not used to fit the model; predictions are checked against their held-out labels.",
+            "benign": serialize(benign_row, str(benign_row["__label__"])),
+            "attack": serialize(attack_row, str(attack_row["__label__"])),
+        })
+
+    def mock_predict(self, kind: str, count: int = 5) -> dict[str, Any]:
+        """Generate bounded synthetic records from the trained feature distribution."""
+        if self.state is None:
+            raise IDSAgentError("Train a model before running a mock prediction.")
+        if kind not in {"attack", "benign"}:
+            raise IDSAgentError("Mock kind must be attack or benign.")
+        count = max(1, min(count, 25))
+        labels = self.state.training_rows["__label__"].astype(str)
+        selected = ~labels.map(self._is_benign) if kind == "attack" else labels.map(self._is_benign)
+        source = self.state.training_rows.loc[selected, self.state.feature_columns]
+        if source.empty:
+            raise IDSAgentError(f"No {kind} examples are available in the trained dataset.")
+        sampled = source.sample(count, replace=True, random_state=42)
+        records = []
+        for _, row in sampled.iterrows():
+            values = pd.to_numeric(row, errors="coerce").fillna(0.0).to_dict()
+            records.append({name: float(value) for name, value in values.items()})
+        predictions = self.predict(records)
+        return {
+            "data_type": "synthetic_from_training_distribution",
+            "expected_kind": kind,
+            "rows": count,
+            "attack_predictions": sum(item["is_attack"] for item in predictions),
+            "benign_predictions": sum(not item["is_attack"] for item in predictions),
+            "records": records,
+            "predictions": predictions,
+        }
 
     def _is_benign(self, label: Any) -> bool:
         value = str(label).strip().upper()

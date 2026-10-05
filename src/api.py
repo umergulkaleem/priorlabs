@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -88,6 +89,15 @@ def live_clear() -> dict[str, Any]:
     return live_monitor.snapshot()
 
 
+@app.post("/live/mock")
+def live_mock(kind: str = Form(default="attack")) -> Any:
+    try:
+        live_monitor.add_mock_flow(kind.strip().lower())
+        return live_monitor.snapshot()
+    except IDSAgentError as error:
+        return _error(error)
+
+
 @app.get("/live/flow/{flow_id}")
 def live_flow_details(flow_id: int) -> Any:
     try:
@@ -128,6 +138,97 @@ def train(
         training = agent.train(label_column=label_column, model_name="tabpfn", max_rows=max_rows)
         comparison = agent.compare_baselines()
         return {"training": training, "comparison": comparison}
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.get("/validation/false-negatives")
+def validation_false_negatives(limit: int = 10) -> Any:
+    try:
+        return agent.false_negatives(max(1, min(limit, 100)))
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.get("/validation/examples")
+def validation_examples() -> Any:
+    try:
+        return agent.validation_examples()
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.get("/validation/attack-summary")
+def validation_attack_summary() -> Any:
+    try:
+        return agent.attack_summary()
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.post("/predict-file")
+async def predict_file(
+    file: UploadFile = File(...),
+    label_column: str | None = Form(default=None),
+    max_rows: int = Form(default=1000),
+) -> Any:
+    try:
+        suffix = Path(file.filename or "").suffix.lower()
+        if suffix not in {".csv", ".parquet"}:
+            return _error(IDSAgentError("Only CSV and Parquet files are supported."))
+        content = await file.read()
+        from io import BytesIO
+
+        frame = (
+            pd.read_csv(BytesIO(content))
+            if suffix == ".csv"
+            else pd.read_parquet(BytesIO(content))
+        )
+        frame = frame.head(max(1, min(max_rows, 10_000)))
+        if label_column and label_column not in frame.columns:
+            return _error(IDSAgentError(f"Label column '{label_column}' was not found."))
+        records_frame = frame.drop(columns=[label_column]) if label_column else frame
+        predictions = agent.predict(records_frame.to_dict(orient="records"))
+        attacks = [item for item in predictions if item["is_attack"]]
+        result: dict[str, Any] = {
+            "rows": len(predictions),
+            "attack_predictions": len(attacks),
+            "benign_predictions": len(predictions) - len(attacks),
+            "predictions": predictions,
+        }
+        if label_column:
+            true_labels = frame[label_column].astype(str).str.strip().tolist()
+            predicted_labels = [item["prediction"] for item in predictions]
+            result["provided_label_column"] = label_column
+            result["accuracy"] = float(
+                sum(actual == predicted for actual, predicted in zip(true_labels, predicted_labels))
+                / max(len(true_labels), 1)
+            )
+            result["review_note"] = (
+                "This accuracy is meaningful only when the uploaded labels use the same classes "
+                "as the trained model."
+            )
+        return result
+    except (IDSAgentError, OSError, ValueError) as error:
+        return _error(error)
+
+
+@app.post("/predict-mock")
+def predict_mock(kind: str = Form(...), count: int = Form(default=5)) -> Any:
+    try:
+        return agent.mock_predict(kind.strip().lower(), count)
+    except IDSAgentError as error:
+        return _error(error)
+
+
+@app.post("/predict")
+def predict(payload: dict[str, Any]) -> Any:
+    try:
+        if not payload:
+            return _error(IDSAgentError("Provide at least one numeric traffic feature."))
+        if isinstance(payload.get("records"), list):
+            return {"predictions": agent.predict(payload["records"])}
+        return {"prediction": agent.predict([payload])[0]}
     except IDSAgentError as error:
         return _error(error)
 

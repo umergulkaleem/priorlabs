@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import threading
 import time
 from collections import defaultdict
@@ -276,6 +277,41 @@ class LiveNetworkMonitor:
             self._window_generation += 1
         self._write_state()
 
+    def add_mock_flow(self, kind: str = "attack") -> dict[str, Any]:
+        """Add a labeled simulation through the same live alert/register path."""
+        if self.agent.state is None:
+            raise IDSAgentError("Train a model before running a simulated live attack.")
+        if kind != "attack":
+            raise IDSAgentError("The live simulation supports only kind=attack.")
+        generated = self.agent.mock_predict(kind, 1)
+        now = datetime.now(timezone.utc).isoformat()
+        result = {
+            "flow_id": self._next_flow_id,
+            "source": "simulation://trained-attack-example",
+            "destination": "simulation://live-network",
+            "source_ip": "simulation",
+            "destination_ip": "simulation",
+            "source_port": 0,
+            "destination_port": 0,
+            "protocol": "SIMULATED",
+            "started_at": now,
+            "last_seen_at": now,
+            "duration_seconds": 0.0,
+            "packet_count": 0,
+            "bytes": 0,
+            "features": generated["records"][0],
+            "prediction": generated["predictions"][0],
+            "error": None,
+            "mock": True,
+            "simulation": True,
+            "simulation_note": "Synthetic demonstration; not captured from a network interface.",
+        }
+        with self._lock:
+            self._next_flow_id += 1
+            self._completed.append(result)
+        self._write_state()
+        return result
+
     def _packet_callback(self, packet: Any) -> None:
         try:
             from scapy.layers.inet import IP, TCP, UDP
@@ -362,7 +398,6 @@ class LiveNetworkMonitor:
             if generation != self._window_generation:
                 return
             self._completed.append(result)
-            self._completed = self._completed[-500:]
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
@@ -376,6 +411,12 @@ class LiveNetworkMonitor:
                     "protocol": flow.protocol,
                     "packet_count": flow.packet_count,
                     "bytes": flow.byte_count,
+                    "started_at": datetime.fromtimestamp(flow.started, timezone.utc).isoformat(),
+                    "last_seen_at": datetime.fromtimestamp(flow.last_seen, timezone.utc).isoformat(),
+                    "duration_seconds": round(flow.last_seen - flow.started, 6),
+                    "features": flow_features(flow),
+                    "prediction": None,
+                    "error": None,
                     "active": True,
                 }
                 for flow in self._flows.values()
@@ -389,7 +430,7 @@ class LiveNetworkMonitor:
                 "suspicious_flows": len(alerts),
                 "live_predictions_used": self._live_predictions_used,
                 "last_error": self._last_error,
-                "flows": list(reversed(self._completed[-100:])),
+                "flows": list(self._completed),
                 "active_flows": active_flows,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }
@@ -398,10 +439,16 @@ class LiveNetworkMonitor:
         with self._write_lock:
             self.state_path.parent.mkdir(exist_ok=True)
             temporary = self.state_path.with_name(
-                f".{self.state_path.name}.{threading.get_ident()}.tmp"
+                f".{self.state_path.name}.{os.getpid()}.{threading.get_ident()}.{time.time_ns()}.tmp"
             )
-            temporary.write_text(json.dumps(self.snapshot(), default=str), encoding="utf-8")
-            temporary.replace(self.state_path)
+            try:
+                temporary.write_text(json.dumps(self.snapshot(), default=str), encoding="utf-8")
+                os.replace(temporary, self.state_path)
+            finally:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
             self._last_state_write = time.monotonic()
 
 

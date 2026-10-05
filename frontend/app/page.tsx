@@ -12,6 +12,10 @@ export default function Home() {
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [training, setTraining] = useState<Record<string, any> | null>(null);
   const [comparison, setComparison] = useState<Record<string, any> | null>(null);
+  const [mockCheck, setMockCheck] = useState<Record<string, any> | null>(null);
+  const [manualRows, setManualRows] = useState({ attack: "", benign: "" });
+  const [manualResults, setManualResults] = useState<Record<string, any> | null>(null);
+  const [manualExpected, setManualExpected] = useState({ attack: "", benign: "" });
   const [file, setFile] = useState<File | null>(null);
   const [useExample, setUseExample] = useState(true);
   const [maxRows, setMaxRows] = useState(1000);
@@ -83,8 +87,58 @@ export default function Home() {
       if (!response.ok) throw new Error(data.message ?? "Training failed.");
       setTraining(data.training); setComparison(data.comparison);
       setStatus({ trained: true, ...data.training });
+      const examplesResponse = await fetch(`${API}/validation/examples`);
+      const examples = await examplesResponse.json();
+      if (!examplesResponse.ok) throw new Error(examples.message ?? "Could not load held-out examples.");
+      setManualRows({
+        attack: JSON.stringify(examples.attack.record, null, 2),
+        benign: JSON.stringify(examples.benign.record, null, 2),
+      });
+      setManualExpected({ attack: examples.attack.expected_label, benign: examples.benign.expected_label });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Training failed.");
+    } finally { setBusy(false); }
+  }
+
+  async function checkMockData(kind: "attack" | "benign") {
+    setBusy(true); setMessage("");
+    const form = new FormData();
+    form.append("kind", kind); form.append("count", "5");
+    try {
+      const response = await fetch(`${API}/predict-mock`, { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Could not run the mock model test.");
+      setMockCheck(data);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not run the mock model test.");
+    } finally { setBusy(false); }
+  }
+
+  async function checkManualTraffic() {
+    setBusy(true); setMessage("");
+    try {
+      const records = ["attack", "benign"].map((kind) => {
+        let parsed: Record<string, unknown>;
+        try {
+          parsed = JSON.parse(manualRows[kind as "attack" | "benign"]);
+        } catch {
+          throw new Error(`The ${kind} example is not valid JSON.`);
+        }
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
+          throw new Error(`The ${kind} example must be a JSON object.`);
+        }
+        return Object.fromEntries(Object.entries(parsed).map(([key, value]) => {
+          const numberValue = Number(value);
+          if (!Number.isFinite(numberValue)) throw new Error(`"${key}" must be numeric.`);
+          return [key, numberValue];
+        }));
+      });
+      const response = await fetch(`${API}/predict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ records }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message ?? "Manual prediction failed.");
+      setManualResults({ attack: data.predictions[0], benign: data.predictions[1] });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Manual prediction failed.");
     } finally { setBusy(false); }
   }
 
@@ -107,12 +161,13 @@ export default function Home() {
     finally { setBusy(false); }
   }
 
-  async function liveAction(action: "start" | "stop" | "clear", interfaceName?: string) {
+  async function liveAction(action: "start" | "stop" | "clear" | "mock", interfaceName?: string) {
     setBusy(true); setMessage("");
     try {
       const form = new FormData();
       if (interfaceName) form.append("interface", interfaceName);
-      const response = await fetch(`${API}/live/${action}`, { method: "POST", body: action === "start" ? form : undefined });
+      if (action === "mock") form.append("kind", "attack");
+      const response = await fetch(`${API}/live/${action}`, { method: "POST", body: action === "start" || action === "mock" ? form : undefined });
       const data = await response.json();
       if (!response.ok) throw new Error(data.message ?? "Live network action failed.");
       setLiveState(data);
@@ -153,7 +208,7 @@ export default function Home() {
             </div>}
           </div>
         </section>
-        {training && <TrainingResults training={training} comparison={comparison} profile={profile} />}
+        {training && <TrainingResults training={training} comparison={comparison} mockCheck={mockCheck} checkMockData={checkMockData} manualRows={manualRows} setManualRows={setManualRows} manualResults={manualResults} manualExpected={manualExpected} checkManualTraffic={checkManualTraffic} busy={busy} />}
       </>}
       {view === "live" && <LiveNetworkView interfaces={interfaces} state={liveState} busy={busy} selectedFlow={selectedFlow} setSelectedFlow={setSelectedFlow} onAction={liveAction} />}
       {view === "alerts" && <section className="page-section"><div className="eyebrow red">LIVE ALERT REGISTER</div><h2>Activity requiring attention.</h2>{alerts.length ? alerts.map((alert, index) => <AlertRow key={alert.flow_id ?? index} alert={alert} onClick={() => setSelectedAlert(alert)} />) : <Empty text="No live attack alerts detected. Start monitoring and generate traffic." />}{selectedAlert && <Detail alert={selectedAlert} onClose={() => setSelectedAlert(null)} />}</section>}
@@ -162,40 +217,47 @@ export default function Home() {
   );
 }
 
-function LiveNetworkView({ interfaces, state, busy, selectedFlow, setSelectedFlow, onAction }: { interfaces: Alert[]; state: Record<string, any>; busy: boolean; selectedFlow: Record<string, any> | null; setSelectedFlow: (flow: Record<string, any> | null) => void; onAction: (action: "start" | "stop" | "clear", interfaceName?: string) => void }) {
+function LiveNetworkView({ interfaces, state, busy, selectedFlow, setSelectedFlow, onAction }: { interfaces: Alert[]; state: Record<string, any>; busy: boolean; selectedFlow: Record<string, any> | null; setSelectedFlow: (flow: Record<string, any> | null) => void; onAction: (action: "start" | "stop" | "clear" | "mock", interfaceName?: string) => void }) {
   const [selectedInterface, setSelectedInterface] = useState("");
   const rows = [...(state.flows ?? []), ...(state.active_flows ?? [])];
   const alerts = rows.filter((row) => row.prediction?.is_attack);
-  return <section className="page-section live-page"><div className="eyebrow blue">LIVE NETWORK</div><h2>See traffic as it happens.</h2><div className="live-controls"><select value={selectedInterface} disabled={state.monitoring} onChange={(event) => setSelectedInterface(event.target.value)}><option value="" disabled>Choose network interface</option>{interfaces.map((item) => <option key={item.name} value={item.name}>{item.display_name} ({item.ip_address})</option>)}</select><button className="primary-button" disabled={busy || state.monitoring || !selectedInterface} onClick={() => onAction("start", selectedInterface)}>{state.monitoring ? "Monitoring..." : "Start Monitoring"}</button><button className="secondary-button" disabled={busy || !state.monitoring} onClick={() => onAction("stop")}>Stop</button><button className="secondary-button" disabled={busy} onClick={() => onAction("clear")}>Clear Traffic</button></div><div className="live-metrics"><MetricBox label="Packets" value={state.packets_captured ?? 0} /><MetricBox label="Flows" value={state.flows_detected ?? 0} /><MetricBox label="Analyzed" value={state.flows_analyzed ?? 0} /><MetricBox label="Alerts" value={state.suspicious_flows ?? 0} /></div>{state.last_error && <div className="notice">{state.last_error}</div>}<div className="live-table-panel"><div className="panel-heading"><span className="eyebrow">LIVE ACTIVITY</span><span className="tag">{state.monitoring ? "Monitoring" : "Available"}</span></div>{rows.length ? <div className="live-table"><div className="live-table-row live-table-header"><span>Flow</span><span>Source</span><span>Destination</span><span>Protocol</span><span>Packets</span><span>Bytes</span><span>Prediction</span><span>Confidence</span><span>Status</span></div>{rows.map((row) => <button className={`live-table-row ${row.prediction?.is_attack ? "live-alert" : ""}`} key={row.flow_id} onClick={() => setSelectedFlow(row)}><span>{row.flow_id}</span><span>{row.source}</span><span>{row.destination}</span><span>{row.protocol}</span><span>{row.packet_count}</span><span>{row.bytes}</span><span>{row.prediction?.prediction ?? row.error ?? "—"}</span><span>{row.prediction?.confidence !== undefined ? `${(row.prediction.confidence * 100).toFixed(1)}%` : "—"}</span><span>{row.active ? "Active" : "Completed"}</span></button>)}</div> : <Empty text="No completed flows yet. Browse normally to generate real traffic." />}</div>{selectedFlow && <Detail alert={selectedFlow} onClose={() => setSelectedFlow(null)} />}{alerts.length > 0 && <div className="notice red-notice">{alerts.length} suspicious live flow(s) detected.</div>}</section>;
+  return <section className="page-section live-page"><div className="eyebrow blue">LIVE NETWORK</div><h2>See traffic as it happens.</h2><div className="live-controls"><select value={selectedInterface} disabled={state.monitoring} onChange={(event) => setSelectedInterface(event.target.value)}><option value="" disabled>Choose network interface</option>{interfaces.map((item) => <option key={item.name} value={item.name}>{item.display_name} ({item.ip_address})</option>)}</select><button className="primary-button" disabled={busy || state.monitoring || !selectedInterface} onClick={() => onAction("start", selectedInterface)}>{state.monitoring ? "Monitoring..." : "Start Monitoring"}</button><button className="secondary-button" disabled={busy || !state.monitoring} onClick={() => onAction("stop")}>Stop</button><button className="secondary-button" disabled={busy} onClick={() => onAction("clear")}>Clear Traffic</button><button className="secondary-button" disabled={busy} onClick={() => onAction("mock")}>Simulate Attack Alert</button></div><p className="helper">Simulate Attack Alert runs the trained model and alert UI without packets. It is labeled synthetic and does not prove live capture.</p><div className="live-metrics"><MetricBox label="Packets" value={state.packets_captured ?? 0} /><MetricBox label="Flows" value={state.flows_detected ?? 0} /><MetricBox label="Analyzed" value={state.flows_analyzed ?? 0} /><MetricBox label="Alerts" value={state.suspicious_flows ?? 0} /></div>{state.last_error && <div className="notice">{state.last_error}</div>}{rows.some((row) => row.simulation) && <div className="notice">Simulation alert present: this flow is synthetic and is not real packet evidence.</div>}<div className="live-table-panel"><div className="panel-heading"><span className="eyebrow">LIVE ACTIVITY</span><span className="tag">{state.monitoring ? "Monitoring" : "Available"}</span></div>{rows.length ? <div className="live-table"><div className="live-table-row live-table-header"><span>Flow</span><span>Source</span><span>Destination</span><span>Protocol</span><span>Packets</span><span>Bytes</span><span>Prediction</span><span>Confidence</span><span>Status</span></div>{rows.map((row) => <button className={`live-table-row ${row.prediction?.is_attack ? "live-alert" : ""}`} key={row.flow_id} onClick={() => setSelectedFlow(row)}><span>{row.flow_id}</span><span>{row.source}</span><span>{row.destination}</span><span>{row.protocol}</span><span>{row.packet_count}</span><span>{row.bytes}</span><span>{row.prediction?.is_attack ? (row.simulation ? "SIMULATED ATTACK" : "ATTACK") : row.prediction?.prediction ?? row.error ?? "—"}</span><span>{row.prediction?.confidence !== undefined ? `${(row.prediction.confidence * 100).toFixed(1)}%` : "—"}</span><span>{row.active ? "Active" : "Completed"}</span></button>)}</div> : <Empty text="No completed flows yet. Generate authorized traffic to your lab machine." />}</div>{selectedFlow && <Detail alert={selectedFlow} onClose={() => setSelectedFlow(null)} />}{alerts.length > 0 && <div className="notice red-notice">{alerts.length} suspicious live flow(s) detected.</div>}</section>;
 }
 
 function MetricBox({ label, value }: { label: string; value: string | number }) { return <div><span>{label}</span><strong>{value}</strong></div>; }
 
-function TrainingResults({ training, comparison, profile }: { training: Record<string, any>; comparison: Record<string, any> | null; profile: Record<string, any> | null }) {
+function TrainingResults({ training, comparison, mockCheck, checkMockData, manualRows, setManualRows, manualResults, manualExpected, checkManualTraffic, busy }: { training: Record<string, any>; comparison: Record<string, any> | null; mockCheck: Record<string, any> | null; checkMockData: (kind: "attack" | "benign") => void; manualRows: { attack: string; benign: string }; setManualRows: (value: { attack: string; benign: string }) => void; manualResults: Record<string, any> | null; manualExpected: { attack: string; benign: string }; checkManualTraffic: () => void; busy: boolean }) {
   const metrics = training.metrics ?? {};
   const models = (comparison?.comparison ?? {}) as Record<string, Record<string, any>>;
-  const columns = (profile?.column_names ?? []) as string[];
   return (
     <section className="results-section">
-      <div className="results-heading"><div><div className="eyebrow blue">MODEL RESULTS</div><h3>Analysis columns</h3></div><span className="tag">Training complete</span></div>
+      <div className="results-heading"><div><div className="eyebrow blue">MODEL TESTING</div><h3>Check the trained model</h3></div><span className="tag">Training complete</span></div>
       <div className="results-metrics">
         <div><span>Accuracy</span><strong>{metrics.accuracy !== undefined ? `${(metrics.accuracy * 100).toFixed(1)}%` : "—"}</strong></div>
+        <div><span>Attack recall</span><strong>{metrics.attack_recall !== undefined ? `${(metrics.attack_recall * 100).toFixed(1)}%` : "—"}</strong></div>
         <div><span>Macro F1</span><strong>{metrics.macro_f1 !== undefined ? metrics.macro_f1.toFixed(3) : "—"}</strong></div>
-        <div><span>Macro recall</span><strong>{metrics.macro_recall !== undefined ? metrics.macro_recall.toFixed(3) : "—"}</strong></div>
-        <div><span>Rows used</span><strong>{metrics.rows_used ?? "—"}</strong></div>
+        <div><span>Test rows</span><strong>{metrics.inference_rows ?? "—"}</strong></div>
       </div>
-      <div className="results-columns">
-        <div className="results-panel">
-          <div className="eyebrow">MODEL COMPARISON</div>
-          <div className="comparison-table">
-            <div className="comparison-header"><span>Model</span><span>Accuracy</span><span>Macro F1</span><span>Recall</span></div>
-            {Object.entries(models).map(([name, row]) => <div className="comparison-line" key={name}><strong>{name.replaceAll("_", " ")}</strong><span>{row.accuracy !== undefined ? `${(row.accuracy * 100).toFixed(1)}%` : "—"}</span><span>{row.macro_f1?.toFixed?.(3) ?? "—"}</span><span>{row.macro_recall?.toFixed?.(3) ?? "—"}</span></div>)}
-          </div>
-        </div>
-        <div className="results-panel">
-          <div className="eyebrow">DATASET COLUMNS ({columns.length})</div>
-          <div className="column-list">{columns.length ? columns.map((column) => <span key={column}>{column}</span>) : <span>No column names returned.</span>}</div>
-        </div>
+      <div className="results-panel mock-test-panel">
+        <div className="eyebrow blue">MODEL TEST</div>
+        <h3>Run a prediction check</h3>
+        <p className="helper">Use safe mock traffic generated from the trained dataset to check whether the model predicts attack or benign. This does not capture traffic or attack a computer.</p>
+        <div className="mock-actions"><button className="secondary-button" onClick={() => checkMockData("attack")} disabled={busy}>Test mock attack data</button><button className="secondary-button" onClick={() => checkMockData("benign")} disabled={busy}>Test mock benign data</button></div>
+        {mockCheck && <div className="user-check-result"><strong>Expected {mockCheck.expected_kind}: {mockCheck.attack_predictions} attack / {mockCheck.benign_predictions} benign</strong><span>{mockCheck.rows} synthetic rows classified by the trained model</span></div>}
+      </div>
+      <div className="results-panel manual-test-panel">
+      <div className="eyebrow blue">HELD-OUT JSON TEST</div>
+      <h3>Classify one attack and one benign row</h3>
+      <p className="helper">These examples are real CICIDS rows from the held-out validation split, not fabricated values and not used to fit the model. The expected labels are shown for comparison.</p>
+      <div className="manual-json-grid">
+        {(["attack", "benign"] as const).map((kind) => <label className="field-label" key={kind}>{kind.toUpperCase()} JSON (expected {manualExpected[kind] || "—"}<textarea className="manual-row-input" value={manualRows[kind]} onChange={(event) => setManualRows({ ...manualRows, [kind]: event.target.value })} spellCheck={false} /></label>)}
+      </div>
+      <button className="primary-button" onClick={checkManualTraffic} disabled={busy || !manualRows.attack || !manualRows.benign}>Classify both held-out rows</button>
+      {manualResults && <div className="manual-result-grid">{(["attack", "benign"] as const).map((kind) => { const result = manualResults[kind]; return <div className={`manual-result ${result.is_attack ? "manual-attack" : ""}`} key={kind}><strong>{kind.toUpperCase()} → {result.is_attack ? "ATTACK" : "BENIGN"}</strong><span>Prediction: {result.prediction}</span><span>Attack probability: {(result.probabilities["1"] * 100).toFixed(1)}%</span><span>Confidence: {(result.confidence * 100).toFixed(1)}%</span><span>{result.evidence?.join(" ")}</span></div>; })}</div>}
+      </div>
+      <div className="results-panel comparison-panel">
+        <div className="eyebrow">MODEL COMPARISON</div>
+        <div className="comparison-table"><div className="comparison-header"><span>Model</span><span>Accuracy</span><span>Macro F1</span><span>Recall</span></div>{Object.entries(models).map(([name, row]) => <div className="comparison-line" key={name}><strong>{name.replaceAll("_", " ")}</strong><span>{row.accuracy !== undefined ? `${(row.accuracy * 100).toFixed(1)}%` : "—"}</span><span>{row.macro_f1?.toFixed?.(3) ?? "—"}</span><span>{row.macro_recall?.toFixed?.(3) ?? "—"}</span></div>)}</div>
       </div>
     </section>
   );
