@@ -1,12 +1,14 @@
 # TabPFN Sentinel
 
-## Real Network Traffic. AI-Powered Detection. Evidence-Based Investigation.
+## Real Network Traffic. TabPFN-Powered Detection. Evidence-Based Investigation.
 
 **Submission for the TabPFN-3.5 Hackathon**
 
-TabPFN Sentinel is a local, AI-powered Intrusion Detection System (IDS) that analyzes **real network traffic captured from a physical Wi-Fi or Ethernet interface**.
+TabPFN Sentinel is a local, AI-powered Intrusion Detection System (IDS) that brings **TabPFN into a real network-security workflow**.
 
-It connects the complete security workflow:
+Instead of using TabPFN only on an offline benchmark, Sentinel takes **real network traffic from a physical Wi-Fi or Ethernet interface**, converts the traffic into structured network-flow features, and uses **TabPFN as the primary detector** to classify traffic as benign or attack.
+
+The complete workflow is:
 
 ```text
 Physical Network Interface
@@ -19,10 +21,18 @@ CICIDS-Compatible Features
         ↓
 TabPFN Detection
         ↓
-Evidence + Confidence
+Confidence + Evidence
         ↓
-Live Dashboard
+Live Investigation Dashboard
 ```
+
+### Why TabPFN Sentinel?
+
+The project demonstrates a direct connection between **TabPFN-based tabular inference and real-world network telemetry**.
+
+A network produces large amounts of structured flow data. Sentinel transforms that telemetry into a tabular representation that can be consumed by TabPFN, then exposes the model's predictions together with the traffic evidence behind them.
+
+**Capture → Structure → Predict → Investigate**
 
 The goal is to detect suspicious network behavior, preserve the evidence behind each prediction, and make the result easy to investigate.
 
@@ -35,7 +45,7 @@ TabPFN is the **primary machine-learning detector** in TabPFN Sentinel.
 The project uses the authenticated TabPFN client through `TabPFNClassifier` to train on structured network-traffic data and classify traffic as benign or attack.
 
 ```text
-CICIDS2017 / Compatible Dataset
+CICIDS2017 / Your Compatible Dataset
               ↓
           TabPFN
               ↓
@@ -73,6 +83,7 @@ TabPFN Sentinel combines:
 * Next.js live monitoring dashboard
 * Offline evaluation and model comparison
 * Simulation mode for demonstrations
+* Support for compatible user-provided datasets
 
 ---
 
@@ -80,7 +91,9 @@ TabPFN Sentinel combines:
 
 The IDS is trained on structured network-traffic data derived from **CICIDS2017**.
 
-Compatible CSV or Parquet datasets can also be used, provided they contain:
+Users can also provide their **own compatible CSV or Parquet dataset**.
+
+A compatible dataset should contain:
 
 * A label column
 * Numeric traffic features
@@ -88,7 +101,7 @@ Compatible CSV or Parquet datasets can also be used, provided they contain:
 * A compatible feature schema
 
 ```text
-CICIDS2017 / Compatible Dataset
+CICIDS2017 / Your Compatible Dataset
               ↓
        Data Cleaning
               ↓
@@ -103,7 +116,7 @@ CICIDS2017 / Compatible Dataset
  Evidence + Confidence + Metrics
 ```
 
-The same trained model can then be used to classify traffic flows captured from a real network interface.
+This allows the same detection pipeline to be trained using the provided CICIDS2017-derived data or another compatible network-traffic dataset.
 
 ---
 
@@ -147,6 +160,8 @@ Wi-Fi / Ethernet
  Alert / Normal
 ```
 
+This connects the trained tabular model to **actual network observations** rather than keeping the demonstration entirely inside an offline dataset.
+
 ---
 
 ## Detection Results
@@ -167,6 +182,7 @@ Each prediction contains more than just a class label.
 This allows an investigator to see **what the model predicted and what traffic characteristics were observed**.
 
 ---
+
 ## Installation
 
 ### Requirements
@@ -193,13 +209,13 @@ cd ..
 
 Set the TabPFN authentication token.
 
-Linux/macOS:
+### Linux/macOS
 
 ```bash
 export TABPFN_TOKEN="your_token_here"
 ```
 
-Windows PowerShell:
+### Windows PowerShell
 
 ```powershell
 $env:TABPFN_TOKEN="your_token_here"
@@ -209,7 +225,7 @@ $env:TABPFN_TOKEN="your_token_here"
 
 ## Run Locally
 
-TabPFN Sentinel can be run locally as two components:
+TabPFN Sentinel runs locally as two components:
 
 ```text
 Terminal 1                 Terminal 2
@@ -282,7 +298,9 @@ Live Monitoring
 Predictions + Evidence
 ```
 
+The system can be trained using the project's CICIDS2017-derived data or a compatible user-provided dataset.
 
+---
 
 ## Evidence-Based Investigation
 
@@ -338,6 +356,8 @@ The system reports metrics including:
 * Expected Calibration Error
 * Reliability information
 
+This provides a direct comparison between the TabPFN-based detector and conventional tabular ML baselines.
+
 ---
 
 ## Live Dashboard
@@ -379,7 +399,9 @@ The basic workflow is:
 8. Record alerts and evidence
 ```
 
-Live monitoring uses the already-trained model. It does **not** retrain TabPFN for every captured flow.
+Live monitoring uses the already-trained model.
+
+It does **not** retrain TabPFN for every captured flow.
 
 ---
 
@@ -440,7 +462,9 @@ The system reports:
 * Expected Calibration Error
 * Reliability information
 
-The reported attack probability represents the model's predicted class probability. It should **not** be interpreted as a perfectly calibrated real-world probability that an attack is occurring.
+The reported attack probability represents the model's predicted class probability.
+
+It should **not** be interpreted as a perfectly calibrated real-world probability that an attack is occurring.
 
 The system therefore exposes reliability information rather than treating model confidence as absolute certainty.
 
@@ -464,14 +488,12 @@ The live system is designed to provide an end-to-end real-traffic testing and in
 
 ---
 
-
-
 ## Complete Demonstration
 
 A complete demonstration can be performed using:
 
 ```text
-CICIDS2017-derived training data
+CICIDS2017 / Compatible User Dataset
               ↓
          Train TabPFN
               ↓
@@ -487,6 +509,7 @@ CICIDS2017-derived training data
               ↓
         Alert + Evidence
               ↓
+        Live Dashboard
 ```
 
 This demonstrates the complete path from **training data to real network detection and investigation**.
@@ -552,5 +575,30 @@ TabPFN Sentinel currently provides:
 * Reliability analysis
 * Live dashboard
 * Simulation support
+* Compatible user-provided dataset support
 
-The central idea is to connect **TabPFN-based tabular inference with real network telemetry**, while keeping predictions, observed traffic evidence, and investigation workflows visible.
+---
+
+## The Core Idea
+
+**TabPFN Sentinel connects TabPFN-based tabular inference with real network telemetry.**
+
+It takes network traffic, reconstructs it into structured flow data, uses TabPFN to classify the traffic, and preserves the prediction, confidence, and observed traffic evidence so the result can be investigated.
+
+```text
+REAL TRAFFIC
+     ↓
+NETWORK FLOWS
+     ↓
+STRUCTURED FEATURES
+     ↓
+TabPFN
+     ↓
+DETECTION
+     ↓
+EVIDENCE
+     ↓
+INVESTIGATION
+```
+
+The result is an end-to-end demonstration of how a tabular foundation model can move from **structured benchmark data to live, real-world network detection**.
