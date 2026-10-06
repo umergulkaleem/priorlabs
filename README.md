@@ -168,6 +168,191 @@ Each prediction contains more than just a class label.
 This allows an investigator to see **what the model predicted and what traffic characteristics were observed**.
 
 ---
+## Installation
+
+### Requirements
+
+* Python 3.10+
+* Node.js 18+
+* Network interface capable of packet capture
+* TabPFN authentication token
+* Administrative/root privileges may be required for packet capture depending on the operating system
+
+Install Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+Set the TabPFN authentication token.
+
+Linux/macOS:
+
+```bash
+export TABPFN_TOKEN="your_token_here"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:TABPFN_TOKEN="your_token_here"
+```
+
+---
+
+## Run Locally
+
+TabPFN Sentinel can be run locally as three components:
+
+```text
+Terminal 1                 Terminal 2                 Terminal 3
+───────────                ───────────                ───────────
+FastAPI Backend             Next.js Dashboard          MCP Server
+     │                            │                         │
+     └───────────────┬────────────┘                         │
+                     ↓                                      ↓
+              TabPFN Sentinel                    AI-assisted investigation
+```
+
+### 1. Start the API
+
+From the project root:
+
+```bash
+uvicorn src.api:app --reload
+```
+
+The API handles:
+
+* Model training
+* Traffic prediction
+* Live monitoring
+* Alert data
+* Investigation data
+
+---
+
+### 2. Start the Dashboard
+
+Open a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the local address displayed by Next.js.
+
+The dashboard provides:
+
+* Live network flows
+* Predictions
+* Confidence
+* Attack alerts
+* Traffic evidence
+* Model information
+* Investigation results
+
+---
+
+### 3. Start the MCP Server
+
+Open a **third terminal** from the project root:
+
+```bash
+python src/mcp_server.py
+```
+
+The MCP server exposes the IDS as investigation tools that an MCP-compatible client can call.
+
+Available tools include:
+
+```text
+train_ids_model
+evaluate_ids_models
+compare_ids_baselines
+predict_traffic
+get_reliability_report
+get_high_risk_alerts
+get_model_disagreement
+investigate_sample
+attack_summary
+investigate_ids
+```
+
+The MCP server is separate from the web API and dashboard. Keep it running while using an MCP-compatible client for investigation.
+
+### Connecting an MCP Client
+
+Configure your MCP client to launch:
+
+```text
+Command:
+python
+
+Arguments:
+src/mcp_server.py
+```
+
+Example MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "tabpfn-sentinel": {
+      "command": "python",
+      "args": [
+        "src/mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+Run the MCP server from the **TabPFN Sentinel project root** so it can access the project's Python modules, datasets, and result files.
+
+---
+
+### 4. Train Before Live Investigation
+
+Before live monitoring or meaningful investigation, train the IDS using a compatible dataset.
+
+The normal workflow is:
+
+```text
+Terminal 1
+FastAPI
+   ↓
+Train TabPFN
+   ↓
+Trained Model
+   ↓
+Live Monitoring
+   ↓
+Predictions + Evidence
+```
+
+The MCP server can then access the IDS functionality for investigation:
+
+```text
+MCP Client
+     ↓
+MCP Server
+     ↓
+TabPFN Sentinel
+     ↓
+Predictions / Alerts / Evidence
+```
+
 
 ## Evidence-Based Investigation
 
@@ -441,253 +626,7 @@ The live system is designed to provide an end-to-end real-traffic testing and in
 
 ---
 
-## False Positives and False Negatives
 
-Offline validation data provides ground truth, allowing false positives and false negatives to be measured directly.
-
-For live traffic, a benign prediction cannot automatically be called a false negative because the system does not inherently know whether an unflagged flow was malicious.
-
-Live attack testing therefore requires an authorized test scenario with known ground truth.
-
----
-
-## Installation
-
-### Requirements
-
-* Python 3.10+
-* Node.js 18+
-* Network interface capable of packet capture
-* TabPFN authentication token
-* Administrative/root privileges may be required for packet capture depending on the operating system
-
-Install Python dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Install frontend dependencies:
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-Set the TabPFN authentication token.
-
-Linux/macOS:
-
-```bash
-export TABPFN_TOKEN="your_token_here"
-```
-
-Windows PowerShell:
-
-```powershell
-$env:TABPFN_TOKEN="your_token_here"
-```
-
----
-
-## Run Locally
-
-TabPFN Sentinel can be run locally as three components:
-
-```text
-Terminal 1                 Terminal 2                 Terminal 3
-───────────                ───────────                ───────────
-FastAPI Backend             Next.js Dashboard          MCP Server
-     │                            │                         │
-     └───────────────┬────────────┘                         │
-                     ↓                                      ↓
-              TabPFN Sentinel                    AI-assisted investigation
-```
-
-### 1. Start the API
-
-From the project root:
-
-```bash
-uvicorn src.api:app --reload
-```
-
-The API handles:
-
-* Model training
-* Traffic prediction
-* Live monitoring
-* Alert data
-* Investigation data
-
----
-
-### 2. Start the Dashboard
-
-Open a second terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the local address displayed by Next.js.
-
-The dashboard provides:
-
-* Live network flows
-* Predictions
-* Confidence
-* Attack alerts
-* Traffic evidence
-* Model information
-* Investigation results
-
----
-
-### 3. Start the MCP Server
-
-Open a **third terminal** from the project root:
-
-```bash
-python src/mcp_server.py
-```
-
-The MCP server exposes the IDS as investigation tools that an MCP-compatible client can call.
-
-Available tools include:
-
-```text
-train_ids_model
-evaluate_ids_models
-compare_ids_baselines
-predict_traffic
-get_reliability_report
-get_high_risk_alerts
-get_model_disagreement
-investigate_sample
-attack_summary
-investigate_ids
-```
-
-The MCP server is separate from the web API and dashboard. Keep it running while using an MCP-compatible client for investigation.
-
-### Connecting an MCP Client
-
-Configure your MCP client to launch:
-
-```text
-Command:
-python
-
-Arguments:
-src/mcp_server.py
-```
-
-Example MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "tabpfn-sentinel": {
-      "command": "python",
-      "args": [
-        "src/mcp_server.py"
-      ]
-    }
-  }
-}
-```
-
-Run the MCP server from the **TabPFN Sentinel project root** so it can access the project's Python modules, datasets, and result files.
-
----
-
-### 4. Train Before Live Investigation
-
-Before live monitoring or meaningful investigation, train the IDS using a compatible dataset.
-
-The normal workflow is:
-
-```text
-Terminal 1
-FastAPI
-   ↓
-Train TabPFN
-   ↓
-Trained Model
-   ↓
-Live Monitoring
-   ↓
-Predictions + Evidence
-```
-
-The MCP server can then access the IDS functionality for investigation:
-
-```text
-MCP Client
-     ↓
-MCP Server
-     ↓
-TabPFN Sentinel
-     ↓
-Predictions / Alerts / Evidence
-```
-
-### Complete Local Setup
-
-Run the three components in separate terminals:
-
-**Terminal 1:**
-
-```bash
-uvicorn src.api:app --reload
-```
-
-**Terminal 2:**
-
-```bash
-cd frontend
-npm run dev
-```
-
-**Terminal 3:**
-
-```bash
-python src/mcp_server.py
-```
-
-Then:
-
-### 4. Train the Model
-
-Train the TabPFN detector using a compatible CICIDS-derived dataset or your own compatible CSV/Parquet dataset.
-
-### 5. Start Live Monitoring
-
-Select the appropriate Wi-Fi or Ethernet interface and start capture.
-
-The system then performs:
-
-```text
-Capture packets
-      ↓
-Build flows
-      ↓
-Extract features
-      ↓
-Run TabPFN
-      ↓
-Generate predictions
-      ↓
-Store evidence
-      ↓
-Display alerts
-```
-
----
 
 ## Complete Demonstration
 
