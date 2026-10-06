@@ -1,40 +1,40 @@
 # TabPFN Sentinel
 
-## Real Network Traffic. TabPFN-Powered Detection. Evidence-Based Investigation.
+## Real Network Traffic. TabPFN-3.5 Detection. Evidence-Based Investigation.
 
 **Submission for the TabPFN-3.5 Hackathon**
 
-TabPFN Sentinel is a local, AI-powered Intrusion Detection System (IDS) that brings **TabPFN into a real network-security workflow**.
+TabPFN Sentinel brings **TabPFN-3.5 into a real-world network-security workflow**.
 
-Instead of using TabPFN only on an offline benchmark, Sentinel takes **real network traffic from a physical Wi-Fi or Ethernet interface**, converts the traffic into structured network-flow features, and uses **TabPFN as the primary detector** to classify traffic as benign or attack.
-
-The complete workflow is:
+Instead of using TabPFN only for offline evaluation, Sentinel takes traffic from a physical Wi-Fi or Ethernet interface, reconstructs network flows, transforms them into structured CICIDS-compatible tabular features, and uses **TabPFN-3.5 as the primary detector** for benign-versus-attack classification.
 
 ```text
-Physical Network Interface
+Real Network Traffic
         ↓
-Real Packet Capture
+Packet Capture
         ↓
 Flow Reconstruction
         ↓
-CICIDS-Compatible Features
+Structured Tabular Features
         ↓
-TabPFN Detection
+TabPFN-3.5
+        ↓
+Attack Detection
         ↓
 Confidence + Evidence
         ↓
-Live Investigation Dashboard
+Live Investigation
 ```
 
-### Why TabPFN Sentinel?
+### Why This Project?
 
-The project demonstrates a direct connection between **TabPFN-based tabular inference and real-world network telemetry**.
-
-A network produces large amounts of structured flow data. Sentinel transforms that telemetry into a tabular representation that can be consumed by TabPFN, then exposes the model's predictions together with the traffic evidence behind them.
+The key idea is to take **real network telemetry and turn it into structured tabular data that TabPFN-3.5 can analyze**.
 
 **Capture → Structure → Predict → Investigate**
 
-The goal is to detect suspicious network behavior, preserve the evidence behind each prediction, and make the result easy to investigate.
+Users can train the system on CICIDS2017 or a compatible network-traffic dataset, then apply the trained TabPFN-3.5 detector to live reconstructed flows. Each prediction is accompanied by model confidence, uncertainty, observed traffic characteristics, and comparisons with conventional baselines.
+
+The result is an end-to-end application that connects **TabPFN-3.5 with real network telemetry**, taking the workflow from packet capture to structured features, detection, evidence, and investigation.
 
 ---
 
@@ -47,9 +47,11 @@ The project uses the authenticated TabPFN client through `TabPFNClassifier` to t
 ```text
 CICIDS2017 / Your Compatible Dataset
               ↓
-          TabPFN
+       Structured Traffic Data
               ↓
-      Attack Prediction
+           TabPFN-3.5
+              ↓
+       Attack Prediction
               ↓
  Confidence + Evidence
 ```
@@ -109,14 +111,14 @@ CICIDS2017 / Your Compatible Dataset
               ↓
        Train / Validation
               ↓
-           TabPFN
+           TabPFN-3.5
               ↓
        Attack Prediction
               ↓
  Evidence + Confidence + Metrics
 ```
 
-This allows the same detection pipeline to be trained using the provided CICIDS2017-derived data or another compatible network-traffic dataset.
+The same pipeline can therefore be used with the project's CICIDS2017-derived data or another compatible network-traffic dataset.
 
 ---
 
@@ -153,14 +155,14 @@ Wi-Fi / Ethernet
        ↓
  Feature Extraction
        ↓
-      TabPFN
+    TabPFN-3.5
        ↓
- Attack Probability
+ Attack Prediction
        ↓
- Alert / Normal
+ Evidence + Alert
 ```
 
-This connects the trained tabular model to **actual network observations** rather than keeping the demonstration entirely inside an offline dataset.
+This connects the trained tabular model to **actual network observations** rather than keeping the workflow entirely inside an offline dataset.
 
 ---
 
@@ -179,126 +181,13 @@ Each prediction contains more than just a class label.
 | Baseline Predictions | Random Forest / Logistic Regression results       |
 | Model Agreement      | Whether models agree                              |
 
-This allows an investigator to see **what the model predicted and what traffic characteristics were observed**.
+This allows an investigator to see:
 
----
+**What did the model predict?**
 
-## Installation
+and
 
-### Requirements
-
-* Python 3.10+
-* Node.js 18+
-* Network interface capable of packet capture
-* TabPFN authentication token
-* Administrative/root privileges may be required for packet capture depending on the operating system
-
-Install Python dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Install frontend dependencies:
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-Set the TabPFN authentication token.
-
-### Linux/macOS
-
-```bash
-export TABPFN_TOKEN="your_token_here"
-```
-
-### Windows PowerShell
-
-```powershell
-$env:TABPFN_TOKEN="your_token_here"
-```
-
----
-
-## Run Locally
-
-TabPFN Sentinel runs locally as two components:
-
-```text
-Terminal 1                 Terminal 2
-───────────                ───────────
-FastAPI Backend             Next.js Dashboard
-     │                            │
-     └───────────────┬────────────┘
-                     ↓
-              TabPFN Sentinel
-```
-
-### 1. Start the API
-
-From the project root:
-
-```bash
-uvicorn src.api:app --reload
-```
-
-The API handles:
-
-* Model training
-* Traffic prediction
-* Live monitoring
-* Alert data
-* Investigation data
-
----
-
-### 2. Start the Dashboard
-
-Open a second terminal:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the local address displayed by Next.js.
-
-The dashboard provides:
-
-* Live network flows
-* Predictions
-* Confidence
-* Attack alerts
-* Traffic evidence
-* Model information
-* Investigation results
-
----
-
-### 3. Train Before Live Monitoring
-
-Before live monitoring, train the IDS using a compatible dataset.
-
-The normal workflow is:
-
-```text
-Terminal 1
-FastAPI
-   ↓
-Train TabPFN
-   ↓
-Trained Model
-   ↓
-Live Monitoring
-   ↓
-Predictions + Evidence
-```
-
-The system can be trained using the project's CICIDS2017-derived data or a compatible user-provided dataset.
+**What traffic characteristics were observed?**
 
 ---
 
@@ -319,7 +208,7 @@ Examples include:
 * Model probabilities
 * Baseline predictions
 
-The system therefore connects:
+The system connects:
 
 ```text
 Prediction
@@ -356,7 +245,7 @@ The system reports metrics including:
 * Expected Calibration Error
 * Reliability information
 
-This provides a direct comparison between the TabPFN-based detector and conventional tabular ML baselines.
+This provides a controlled comparison between the TabPFN-based detector and conventional tabular ML approaches on the same traffic prediction task.
 
 ---
 
@@ -490,29 +379,153 @@ The live system is designed to provide an end-to-end real-traffic testing and in
 
 ## Complete Demonstration
 
-A complete demonstration can be performed using:
+A complete demonstration can be performed using CICIDS2017-derived training data or a compatible user-provided dataset.
 
 ```text
-CICIDS2017 / Compatible User Dataset
+CICIDS2017 / Your Compatible Dataset
               ↓
-         Train TabPFN
+         Train TabPFN-3.5
               ↓
-        Evaluate models
+        Evaluate Models
               ↓
-     Start real capture
+     Start Real Capture
               ↓
-       Generate traffic
+       Generate Traffic
               ↓
-    Reconstruct network flow
+    Reconstruct Network Flow
               ↓
-        TabPFN predicts
+        TabPFN Predicts
               ↓
         Alert + Evidence
               ↓
-        Live Dashboard
+       Live Dashboard
+```
+
+The important transition is:
+
+```text
+OFFLINE TABULAR DATA
+        ↓
+     TabPFN-3.5
+        ↓
+REAL NETWORK TRAFFIC
+        ↓
+   LIVE PREDICTION
 ```
 
 This demonstrates the complete path from **training data to real network detection and investigation**.
+
+---
+
+## Installation
+
+### Requirements
+
+* Python 3.10+
+* Node.js 18+
+* Network interface capable of packet capture
+* TabPFN authentication token
+* Administrative/root privileges may be required for packet capture depending on the operating system
+
+Install Python dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+Set the TabPFN authentication token.
+
+### Linux/macOS
+
+```bash
+export TABPFN_TOKEN="your_token_here"
+```
+
+### Windows PowerShell
+
+```powershell
+$env:TABPFN_TOKEN="your_token_here"
+```
+
+---
+
+## Run Locally
+
+TabPFN Sentinel can be run locally as two components:
+
+```text
+Terminal 1                 Terminal 2
+───────────                ───────────
+FastAPI Backend             Next.js Dashboard
+     │                            │
+     └───────────────┬────────────┘
+                     ↓
+              TabPFN Sentinel
+```
+
+### 1. Start the API
+
+From the project root:
+
+```bash
+uvicorn src.api:app --reload
+```
+
+The API handles:
+
+* Model training
+* Traffic prediction
+* Live monitoring
+* Alert data
+* Investigation data
+
+### 2. Start the Dashboard
+
+Open a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the local address displayed by Next.js.
+
+The dashboard provides:
+
+* Live network flows
+* Predictions
+* Confidence
+* Attack alerts
+* Traffic evidence
+* Model information
+* Investigation results
+
+### 3. Train Before Live Monitoring
+
+Before live monitoring, train the IDS using a compatible dataset.
+
+The normal workflow is:
+
+```text
+Dataset
+   ↓
+Train TabPFN-3.5
+   ↓
+Trained Model
+   ↓
+Live Monitoring
+   ↓
+Predictions + Evidence
+```
 
 ---
 
@@ -583,7 +596,7 @@ TabPFN Sentinel currently provides:
 
 **TabPFN Sentinel connects TabPFN-based tabular inference with real network telemetry.**
 
-It takes network traffic, reconstructs it into structured flow data, uses TabPFN to classify the traffic, and preserves the prediction, confidence, and observed traffic evidence so the result can be investigated.
+It takes network traffic, reconstructs it into structured flow data, uses TabPFN-3.5 to classify the traffic, and preserves the prediction, confidence, and observed traffic evidence so the result can be investigated.
 
 ```text
 REAL TRAFFIC
@@ -592,7 +605,7 @@ NETWORK FLOWS
      ↓
 STRUCTURED FEATURES
      ↓
-TabPFN
+TabPFN-3.5
      ↓
 DETECTION
      ↓
@@ -601,4 +614,4 @@ EVIDENCE
 INVESTIGATION
 ```
 
-The result is an end-to-end demonstration of how a tabular foundation model can move from **structured benchmark data to live, real-world network detection**.
+**From packets to structured tabular data to TabPFN-3.5 to live detection.**
