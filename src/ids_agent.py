@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from importlib.metadata import PackageNotFoundError, version as package_version
 import json
 import os
 import time
@@ -81,6 +82,24 @@ class IDSInvestigator:
     def __init__(self) -> None:
         self.state: TrainingState | None = None
         self._dataset: pd.DataFrame | None = None
+
+    @staticmethod
+    def _model_details(model_name: str, model: Any) -> dict[str, Any]:
+        details: dict[str, Any] = {
+            "model": model_name,
+            "implementation": f"{type(model).__module__}.{type(model).__name__}",
+        }
+        if model_name == "tabpfn":
+            try:
+                details["client_package_version"] = package_version("tabpfn-client")
+            except PackageNotFoundError:
+                details["client_package_version"] = None
+            details["model_version_requested"] = "v3.5"
+            details["version_note"] = (
+                "v3.5 was explicitly requested from tabpfn-client; "
+                "the provider/model artifact version is not independently exposed."
+            )
+        return details
 
     def load_dataset(self, path: str, max_rows: int = 100_000) -> dict[str, Any]:
         dataset_path = Path(path).expanduser().resolve()
@@ -224,7 +243,12 @@ class IDSInvestigator:
             reliability=reliability,
         )
         result = {
-            "primary_model": "TabPFN 3.5" if model_name == "tabpfn" else model_name,
+            "primary_model": (
+                "TabPFN v3.5 (requested)"
+                if model_name == "tabpfn"
+                else model_name
+            ),
+            "model_details": self._model_details(model_name, model),
             "metrics": metrics,
             "reliability": reliability,
             "profile": self.state.profile,
@@ -363,7 +387,11 @@ class IDSInvestigator:
             self.state.baseline_models[name] = model
             baseline_predictions[name] = model.predict(X_test)
         self.state.baseline_predictions = baseline_predictions
-        result = {"primary_model": "TabPFN 3.5" if self.state.model_name == "tabpfn" else self.state.model_name,
+        result = {"primary_model": (
+                      "TabPFN v3.5 (requested)"
+                      if self.state.model_name == "tabpfn"
+                      else self.state.model_name
+                  ),
                   "comparison": comparison, "evaluation": "same 80/20 split, random_state=42"}
         self._save_experiment({"profile": self.state.profile, "metrics": comparison,
                                "reliability": self.state.reliability})
@@ -551,7 +579,11 @@ class IDSInvestigator:
                     "TABPFN_TOKEN is missing. The local native TabPFN artifact is not used as a silent fallback; "
                     "configure the authenticated TabPFN client or explicitly run a baseline."
                 )
-            return TabPFNClassifier(random_state=42, fit_mode="fit_preprocessors")
+            return TabPFNClassifier.create_default_for_version(
+                "v3.5",
+                random_state=42,
+                fit_mode="fit_preprocessors",
+            )
         raise IDSAgentError("model_name must be tabpfn, random_forest, or logistic_regression.")
 
     def predict(self, records: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -729,8 +761,14 @@ class IDSInvestigator:
     def status(self) -> dict[str, Any]:
         if self.state is None:
             return {"stage": "dataset_not_loaded", "trained": False}
+        details = self._model_details(self.state.model_name, self.state.model)
         return {"stage": "investigation_ready", "trained": True,
-                "primary_model": "TabPFN 3.5" if self.state.model_name == "tabpfn" else self.state.model_name,
+                "primary_model": (
+                    "TabPFN v3.5 (requested)"
+                    if self.state.model_name == "tabpfn"
+                    else self.state.model_name
+                ),
                 "model": self.state.model_name, "label_column": self.state.label_column,
+                "model_details": details,
                 "classes": self.state.classes, "metrics": self.state.metrics,
                 "reliability_available": bool(self.state.reliability)}
