@@ -1,255 +1,556 @@
 # TabPFN Sentinel
 
-## Real network traffic. AI detection. Evidence-based investigation.
+## Real Network Traffic. AI-Powered Detection. Evidence-Based Investigation.
 
-TabPFN Sentinel is a local intrusion-detection platform that turns **real
-packets from a physical Wi-Fi/Ethernet interface** into explainable security
-alerts.
+**Submission for the TabPFN-3.5 Hackathon**
 
-It connects the complete security story:
+TabPFN Sentinel is a local, AI-powered Intrusion Detection System (IDS) that analyzes **real network traffic captured from a physical Wi-Fi or Ethernet interface**.
 
-```text
-Real packets
-  -> reconstructed network flows
-  -> CICIDS-compatible features
-  -> TabPFN attack prediction
-  -> risk evidence and alert
-  -> Next.js dashboard
-  -> natural-language MCP investigation
-```
-
-This is more than a model demo. A judge can see the traffic arrive, inspect the
-flow that was created, review the prediction evidence, and ask the system what
-happened.
-
----
-
-## Why this can win
-
-### 1. It connects AI to the real world
-
-The primary live path uses packets captured from a real network interface. It
-does not depend on a fake alert to claim detection.
-
-### 2. It is evidence-first
-
-Every live prediction can be connected to:
-
-- flow ID;
-- source and destination;
-- source and destination ports;
-- protocol;
-- packet and byte counts;
-- attack probability;
-- confidence and uncertainty;
-- model evidence;
-- baseline model agreement.
-
-### 3. It is explainable through conversation
-
-The MCP investigator lets an analyst ask:
+It connects the complete security workflow:
 
 ```text
-What just happened on my network?
-Which connection is highest risk?
-Why was flow 17 flagged?
-Which port was attacked?
-Do the baseline models agree?
+Physical Network Interface
+        ↓
+Real Packet Capture
+        ↓
+Flow Reconstruction
+        ↓
+CICIDS-Compatible Features
+        ↓
+TabPFN Detection
+        ↓
+Evidence + Confidence
+        ↓
+Live Dashboard
 ```
 
-Answers are grounded in the actual persisted flow and prediction evidence, not
-hardcoded incident text.
-
-### 4. It is honest about uncertainty
-
-TabPFN is compared with Random Forest and Logistic Regression. The UI exposes
-attack probability, confidence, uncertainty, and disagreement instead of
-pretending that every prediction is certain.
-
-### 5. It has a safe demo mode
-
-The project includes a clearly labelled simulated alert so the dashboard and
-MCP experience can be demonstrated reliably. Simulated data is marked with
-`simulation: true`; it is never presented as proof of packet capture.
+The goal is to detect suspicious network behavior, preserve the evidence behind each prediction, and make the result easy to investigate.
 
 ---
 
-## The hackathon demo
+## Built with TabPFN-3.5
 
-Use two machines that you own or are authorized to test.
+TabPFN is the **primary machine-learning detector** in TabPFN Sentinel.
 
-1. Start the API and dashboard on **Machine A**.
-2. Train the model using the CICIDS2017-derived dataset.
-3. Select Machine A's physical Wi-Fi/Ethernet interface.
-4. Start **Live Network** monitoring.
-5. From **Machine B**, generate a short, bounded connection pattern against
-   Machine B's private IP address.
-6. Show packet counters increasing and a real flow being reconstructed.
-7. Open the alert and show the TabPFN prediction and evidence.
-8. Ask the MCP investigator: `What just happened on my network?`
-9. Ask: `Why was this flow flagged?` and `Which port was attacked?`
+The project uses the authenticated TabPFN client through `TabPFNClassifier` to train on structured network-traffic data and classify traffic as benign or attack.
 
-The strongest claim is precise:
+```text
+CICIDS2017 / Compatible Dataset
+              ↓
+          TabPFN
+              ↓
+      Attack Prediction
+              ↓
+ Confidence + Evidence
+```
 
-> This authorized traffic was captured, reconstructed as a flow, scored by the
-> trained model, and either generated an alert or was recorded as a false
-> negative.
+The trained TabPFN model is also used for live network-flow prediction.
 
-Do not scan the public internet or third-party systems. Keep the test private,
-short, bounded, and non-destructive.
+For comparison, the system evaluates the same traffic data with:
+
+* Random Forest
+* Logistic Regression
+
+This allows the TabPFN-based approach to be evaluated against conventional tabular ML baselines.
+
+> **Implementation note:** the project uses the TabPFN client as its primary TabPFN-3.5 hackathon model path. The code does not hard-code a provider-side `"3.5"` model-version parameter.
 
 ---
 
-## Run locally on Windows
+## What It Does
+
+TabPFN Sentinel combines:
+
+* Real packet capture using Scapy
+* Bidirectional network-flow reconstruction
+* CICIDS2017-compatible traffic features
+* TabPFN as the primary ML detector
+* Random Forest and Logistic Regression baselines
+* Live attack/benign predictions
+* Confidence and uncertainty information
+* Evidence-backed prediction records
+* Persistent alerts and investigation data
+* Next.js live monitoring dashboard
+* Offline evaluation and model comparison
+* Simulation mode for demonstrations
+
+---
+
+## Machine Learning Pipeline
+
+The IDS is trained on structured network-traffic data derived from **CICIDS2017**.
+
+Compatible CSV or Parquet datasets can also be used, provided they contain:
+
+* A label column
+* Numeric traffic features
+* At least two classes
+* A compatible feature schema
+
+```text
+CICIDS2017 / Compatible Dataset
+              ↓
+       Data Cleaning
+              ↓
+      Feature Selection
+              ↓
+       Train / Validation
+              ↓
+           TabPFN
+              ↓
+       Attack Prediction
+              ↓
+ Evidence + Confidence + Metrics
+```
+
+The same trained model can then be used to classify traffic flows captured from a real network interface.
+
+---
+
+## Real Network Traffic Detection
+
+Unlike an offline-only IDS, Sentinel can capture traffic directly from a physical network interface.
+
+The live collector uses Scapy to observe packets and reconstruct flows.
+
+Each flow tracks information such as:
+
+* Source and destination
+* Source and destination ports
+* Protocol
+* Packet counts
+* Byte counts
+* Forward/backward traffic
+* Flow duration
+* Packet lengths
+* TCP flags
+* Inter-arrival timing
+* Forward/backward statistics
+
+The collector transforms the flow into a CICIDS-compatible feature record.
+
+```text
+Wi-Fi / Ethernet
+       ↓
+     Scapy
+       ↓
+ Packet Capture
+       ↓
+ Flow Reconstruction
+       ↓
+ Feature Extraction
+       ↓
+      TabPFN
+       ↓
+ Attack Probability
+       ↓
+ Alert / Normal
+```
+
+---
+
+## Detection Results
+
+Each prediction contains more than just a class label.
+
+| Output               | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| Prediction           | Predicted traffic class                           |
+| Attack Status        | Whether the prediction is classified as an attack |
+| Confidence           | Strength of the model prediction                  |
+| Class Probabilities  | Probability assigned to each class                |
+| Uncertainty          | Prediction uncertainty information                |
+| Evidence             | Observed traffic statistics                       |
+| Baseline Predictions | Random Forest / Logistic Regression results       |
+| Model Agreement      | Whether models agree                              |
+
+This allows an investigator to see **what the model predicted and what traffic characteristics were observed**.
+
+---
+## Installation
 
 ### Requirements
 
-- Windows with Python 3.13
-- Node.js and npm
-- Npcap with WinPcap compatibility enabled
-- A TabPFN token for the primary model
+* Python 3.10+
+* Node.js 18+
+* Network interface capable of packet capture
+* TabPFN authentication token
+* Administrative/root privileges may be required for packet capture depending on the operating system
 
-### Install
+Install Python dependencies:
 
-```powershell
-Set-Location C:\Users\Me\Desktop\Hackathon\priorlabs
-C:\Users\Me\AppData\Local\Microsoft\WindowsApps\python3.13.exe -m pip install -r requirements.txt
-Copy-Item .env.example .env
+```bash
+pip install -r requirements.txt
 ```
 
-Set the token in `.env`:
+Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+Set the TabPFN authentication token.
+
+Linux/macOS:
+
+```bash
+export TABPFN_TOKEN="your_token_here"
+```
+
+Windows PowerShell:
+
+```powershell
+$env:TABPFN_TOKEN="your_token_here"
+```
+
+---
+
+## Run Locally
+
+TabPFN Sentinel can be run locally as two components:
 
 ```text
-TABPFN_TOKEN=your-token
+Terminal 1                 Terminal 2
+───────────                ───────────
+FastAPI Backend             Next.js Dashboard
+     │                            │
+     └───────────────┬────────────┘
+                     ↓
+              TabPFN Sentinel
 ```
 
-Never commit `.env` or expose the token in screenshots.
+### 1. Start the API
 
-### Start the backend
+From the project root:
 
-In Terminal 1:
-
-```powershell
-Set-Location C:\Users\Me\Desktop\Hackathon\priorlabs
-C:\Users\Me\AppData\Local\Microsoft\WindowsApps\python3.13.exe -m uvicorn src.api:app --reload --port 8000
+```bash
+uvicorn src.api:app --reload
 ```
 
-Check that it is running:
+The API handles:
 
-```powershell
-Invoke-WebRequest http://localhost:8000/health
-```
+* Model training
+* Traffic prediction
+* Live monitoring
+* Alert data
+* Investigation data
 
-### Start the dashboard
+---
 
-In Terminal 2:
+### 2. Start the Dashboard
 
-```powershell
-Set-Location C:\Users\Me\Desktop\Hackathon\priorlabs\frontend
+Open a second terminal:
+
+```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>.
+Open the local address displayed by Next.js.
 
-### Start the standalone MCP server
+The dashboard provides:
 
-Optional, for an MCP client or terminal investigation:
-
-```powershell
-Set-Location C:\Users\Me\Desktop\Hackathon\priorlabs
-C:\Users\Me\AppData\Local\Microsoft\WindowsApps\python3.13.exe -m src.mcp_server
-```
-
----
-
-## Dashboard workflow
-
-1. **Dataset Analysis** — load the example dataset and select `is_attack`.
-2. **Train** — train TabPFN and compare the baseline models.
-3. **Held-out JSON Test** — classify one attack and one benign validation
-   record that were not used for training.
-4. **Live Network** — capture real packets and reconstruct flows.
-5. **Alerts** — inspect flows classified as attacks.
-6. **Investigator** — ask natural-language questions about the live evidence.
-
-The simulated attack button is useful for rehearsing the final three screens.
-For a genuine detection claim, use a flow with `simulation: false` and real
-interface packet counters.
+* Live network flows
+* Predictions
+* Confidence
+* Attack alerts
+* Traffic evidence
+* Model information
+* Investigation results
 
 ---
 
-## Architecture
+### 3. Train Before Live Monitoring
+
+Before live monitoring, train the IDS using a compatible dataset.
+
+The normal workflow is:
 
 ```text
-Physical NIC
-    |
-    v
-Scapy capture -> flow reconstruction -> feature extraction
-    |
-    v
-FastAPI + TabPFN + Random Forest + Logistic Regression
-    |                         |
-    v                         v
-Next.js dashboard       live_state.json
-                              |
-                              v
-                    MCP evidence investigation
+Terminal 1
+FastAPI
+   ↓
+Train TabPFN
+   ↓
+Trained Model
+   ↓
+Live Monitoring
+   ↓
+Predictions + Evidence
 ```
 
-Key files:
 
-- [`src/live_network.py`](src/live_network.py) — packet capture, flows, and
-  live features.
-- [`src/ids_agent.py`](src/ids_agent.py) — training, prediction, evaluation,
-  and reliability analysis.
-- [`src/api.py`](src/api.py) — FastAPI endpoints.
-- [`src/mcp_server.py`](src/mcp_server.py) — MCP tools and live investigation.
-- [`frontend/app/page.tsx`](frontend/app/page.tsx) — Next.js dashboard.
 
----
+## Evidence-Based Investigation
 
-## Important model semantics
+Sentinel preserves traffic evidence alongside model predictions.
 
-For binary detection:
+Examples include:
+
+* Flow duration
+* Packet counts
+* Byte counts
+* Packet-rate statistics
+* Byte-rate statistics
+* Packet-length statistics
+* TCP flag activity
+* Forward/backward traffic behavior
+* Model probabilities
+* Baseline predictions
+
+The system therefore connects:
 
 ```text
-0 = BENIGN
-1 = ATTACK
+Prediction
+    +
+Observed Traffic Evidence
+    +
+Model Output
+    ↓
+Investigable Alert
 ```
 
-- `probabilities["1"]` is the attack-class probability.
-- `confidence` is the highest class probability, not automatically attack
-  probability.
-- `uncertainty` is reported separately.
-- A live flow appears in Alerts when `prediction.is_attack` is true.
-- Probabilities are model outputs, not calibrated certainty.
-
-The live extractor uses only observed traffic. Some full CICIDS fields require
-payload, TCP-window, or bulk-transfer inspection and are explicitly represented
-as unavailable values rather than fabricated data.
+The evidence describes observed traffic and model behavior. It should not be interpreted as a causal explanation of why an attack occurred.
 
 ---
 
-## Offline evaluation
+## Model Comparison
 
-```powershell
-C:\Users\Me\AppData\Local\Microsoft\WindowsApps\python3.13.exe main.py `
-  data\processed\cicids2017_clean.parquet `
-  --label-column is_attack --model tabpfn --max-rows 1000
-```
+TabPFN is evaluated alongside:
 
-Results are saved to
-[`results/latest_experiment.json`](results/latest_experiment.json). Offline
-metrics are useful for model evaluation, but they do not guarantee live
-performance because local traffic can differ from CICIDS2017 feature
-distributions.
+* Random Forest
+* Logistic Regression
+
+The models use the same deterministic train/validation split so their results can be compared consistently.
+
+The system reports metrics including:
+
+* Accuracy
+* Precision
+* Recall
+* F1
+* ROC-AUC where applicable
+* Confusion matrix
+* Brier score
+* Expected Calibration Error
+* Reliability information
 
 ---
 
-## Responsible testing
+## Live Dashboard
 
-Only capture and generate traffic on systems and networks you own or are
-authorized to test. A captured-but-benign prediction must be recorded as a
-false negative, not hidden. That honesty is part of the product's value:
-TabPFN Sentinel shows both the alert and the evidence needed to improve it.
+After the API and dashboard are running, the Next.js dashboard provides a live view of network activity.
+
+The dashboard displays:
+
+* Live network flows
+* Source and destination
+* Protocol
+* Packet counts
+* Byte counts
+* Prediction
+* Confidence
+* Attack status
+* High-risk alerts
+* Model information
+* Investigation results
+
+The dashboard makes the detection pipeline visible instead of hiding the ML process behind a single prediction number.
+
+---
+
+## Live Monitoring
+
+Live monitoring requires a trained model.
+
+The basic workflow is:
+
+```text
+1. Load a compatible dataset
+2. Train the TabPFN model
+3. Select a network interface
+4. Start live monitoring
+5. Capture network flows
+6. Generate CICIDS-compatible features
+7. Predict with TabPFN
+8. Record alerts and evidence
+```
+
+Live monitoring uses the already-trained model. It does **not** retrain TabPFN for every captured flow.
+
+---
+
+## Simulation Mode
+
+The project includes a simulation path for demonstrations and testing when live packet capture is unavailable.
+
+Simulated records are explicitly marked as simulation data.
+
+```text
+Real Traffic
+    ↓
+Real packet capture
+    ↓
+Real reconstructed flows
+
+Simulation
+    ↓
+Generated test records
+    ↓
+Explicit simulation markers
+```
+
+Simulation is kept separate from real network observations so demonstration data is not presented as genuine captured traffic.
+
+---
+
+## Offline Evaluation
+
+The system can also be used without live packet capture for reproducible model evaluation.
+
+```text
+Dataset
+   ↓
+Train TabPFN
+   ↓
+Validation Set
+   ↓
+Predictions
+   ↓
+Metrics
+   ↓
+Baseline Comparison
+```
+
+This provides a controlled environment for evaluating the ML component before testing it against live traffic.
+
+---
+
+## Reliability and Prediction Semantics
+
+The system reports:
+
+* Attack probability
+* Confidence
+* Uncertainty
+* Brier score
+* Expected Calibration Error
+* Reliability information
+
+The reported attack probability represents the model's predicted class probability. It should **not** be interpreted as a perfectly calibrated real-world probability that an attack is occurring.
+
+The system therefore exposes reliability information rather than treating model confidence as absolute certainty.
+
+---
+
+## Important Live-Traffic Considerations
+
+The live feature extractor recreates the traffic features that can be reliably derived from lightweight packet-flow observation.
+
+Some CICIDS-style features, including certain TCP window, payload, bulk-transfer, and detailed directional timing features, are difficult to reproduce exactly from lightweight live packet capture.
+
+Where a feature cannot be reliably derived, the implementation uses explicit zero-valued placeholders rather than inventing random measurements.
+
+These should be interpreted as unavailable or approximated features, not necessarily measured zero values.
+
+Therefore:
+
+> Strong offline performance does not automatically guarantee identical performance on live network traffic.
+
+The live system is designed to provide an end-to-end real-traffic testing and investigation pipeline.
+
+---
+
+
+
+## Complete Demonstration
+
+A complete demonstration can be performed using:
+
+```text
+CICIDS2017-derived training data
+              ↓
+         Train TabPFN
+              ↓
+        Evaluate models
+              ↓
+     Start real capture
+              ↓
+       Generate traffic
+              ↓
+    Reconstruct network flow
+              ↓
+        TabPFN predicts
+              ↓
+        Alert + Evidence
+              ↓
+```
+
+This demonstrates the complete path from **training data to real network detection and investigation**.
+
+---
+
+## Technology
+
+### Machine Learning
+
+* TabPFN
+* Random Forest
+* Logistic Regression
+* Scikit-learn
+
+### Network Analysis
+
+* Scapy
+* Packet capture
+* Bidirectional flow reconstruction
+* CICIDS-compatible feature extraction
+
+### Backend
+
+* Python
+* FastAPI
+
+### Frontend
+
+* Next.js
+* React
+* Tailwind CSS
+
+### Storage
+
+* JSON-based persistent live state
+* Dataset-based offline evaluation
+
+---
+
+## Responsible Testing
+
+TabPFN Sentinel should only be used on networks and systems where you have permission to monitor and test traffic.
+
+For demonstrations involving suspicious or attack-like traffic, use an isolated lab, authorized test environment, or other controlled infrastructure.
+
+The project is designed to demonstrate **defensive network detection and investigation**, not unauthorized exploitation.
+
+---
+
+## Project Status
+
+TabPFN Sentinel currently provides:
+
+* Real packet capture
+* Network-flow reconstruction
+* CICIDS-compatible feature extraction
+* TabPFN-based detection
+* Random Forest and Logistic Regression comparison
+* Offline model evaluation
+* Live prediction
+* Evidence persistence
+* Reliability analysis
+* Live dashboard
+* Simulation support
+
+The central idea is to connect **TabPFN-based tabular inference with real network telemetry**, while keeping predictions, observed traffic evidence, and investigation workflows visible.
